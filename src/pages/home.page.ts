@@ -54,6 +54,26 @@ export class HomePage extends BasePage {
     return this.page.locator('button.login-button');
   }
 
+  private get pickupCityInput(): Locator {
+    return this.page.locator('input[placeholder="موقع استلام السيارة"]');
+  }
+
+  private get topCitiesPanel(): Locator {
+    // The panel that opens under the city field, headed "أبرز المدن" (Top Cities).
+    // .last() resolves to the innermost matching wrapper (document order).
+    return this.page
+      .locator('div', { has: this.page.getByRole('heading', { name: 'أبرز المدن' }) })
+      .last();
+  }
+
+  private get pickupDateInput(): Locator {
+    return this.page.locator('div.input:has(span.floating-label:text-is("وقت استلام السيارة")) input');
+  }
+
+  private get dropoffDateInput(): Locator {
+    return this.page.locator('div.input:has(span.floating-label:text-is("وقت تسليم السيارة")) input');
+  }
+
   async openHomePage(): Promise<void> {
     // Wait for the DOM rather than the full load event: the live site pulls in
     // heavy third-party scripts (analytics, payment widgets) that can delay the
@@ -64,6 +84,27 @@ export class HomePage extends BasePage {
 
   async openArabicHomePage(): Promise<void> {
     await this.page.goto('/ar', { waitUntil: 'domcontentloaded' });
+  }
+
+  async expectValidRentalDuration(): Promise<void> {
+    // The daily search is pre-filled with a valid future pickup/return range, so
+    // confirm both bounds are set before searching. The values are populated
+    // after the search widget hydrates, so allow extra time under load.
+    await expect(this.pickupDateInput).not.toHaveValue('', { timeout: 20_000 });
+    await expect(this.dropoffDateInput).not.toHaveValue('', { timeout: 20_000 });
+  }
+
+  async searchCarsInCity(city: string): Promise<void> {
+    // Opening the city field reveals a "Top Cities" quick-pick; choosing a city
+    // runs the search with the pre-filled valid duration and routes to the car
+    // list page.
+    await expect(this.pickupCityInput).toBeVisible();
+    await this.pickupCityInput.click();
+
+    await expect(this.topCitiesPanel).toBeVisible();
+    await this.topCitiesPanel.getByText(city, { exact: true }).click();
+
+    await this.page.waitForURL(/car-search/, { timeout: 30_000 });
   }
 
   async logout(): Promise<void> {

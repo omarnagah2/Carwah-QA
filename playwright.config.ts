@@ -12,7 +12,9 @@ export default defineConfig({
   // These specs exercise a shared live pre-prod backend, so allow one local
   // retry (two in CI) to absorb transient network/OTP timing flakiness.
   retries: process.env.CI ? 2 : 1,
-  workers: process.env.CI ? 1 : undefined,
+  // These specs share one live pre-prod backend and account, so cap local
+  // parallelism to avoid overwhelming it (which shows up as flaky timeouts).
+  workers: process.env.CI ? 1 : 3,
   reporter: [['html'], ['list']],
   use: {
     // The prewebsite calls its GraphQL endpoint over HTTP, so the test page also
