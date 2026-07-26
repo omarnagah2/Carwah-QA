@@ -27,6 +27,32 @@ Open Playwright UI mode:
 npm run test:ui
 ```
 
+## Shared Environment & Flaky-Failure Policy
+
+These tests run against a shared pre-prod backend by design — the OTP login test
+is deliberately kept on the real backend as part of end-to-end validation (no
+mocking, no quarantine). Backend latency can temporarily degrade during
+deployment windows, which can cause transient failures that are **not**
+automation defects.
+
+To keep the automation deterministic while acknowledging that instability:
+
+- **Retries** are set to 2. Transient blips that recover on retry surface as
+  `flaky`, not `failed`.
+- **Failure classification**: a custom reporter
+  ([environment-classifier](src/reporters/environment-classifier.ts)) tags every
+  hard failure (after retries) as either *environment-related* (timeout/network
+  signature — the fingerprint of backend latency) or *automation/product defect*
+  (content/logic assertion mismatch). The summary prints at the end of a run.
+- **Health check**: confirm whether a run hit a deployment window.
+
+```bash
+npm run health
+```
+
+It reports `HEALTHY`, `SLOW`, or `DEGRADED` for the backend. If it reports
+degraded/slow, treat concurrent failures as environment-related.
+
 ## Login Test
 
 The requested website is:

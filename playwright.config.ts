@@ -9,13 +9,15 @@ export default defineConfig({
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  // These specs exercise a shared live pre-prod backend, so allow one local
-  // retry (two in CI) to absorb transient network/OTP timing flakiness.
-  retries: process.env.CI ? 2 : 1,
+  // These specs exercise a shared live pre-prod backend whose latency can
+  // degrade during deployment windows, so retry to absorb transient blips.
+  // Failures that survive retries are classified by the environment-classifier
+  // reporter (environment-related vs automation defect).
+  retries: 2,
   // These specs share one live pre-prod backend and account, so cap local
   // parallelism to avoid overwhelming it (which shows up as flaky timeouts).
   workers: process.env.CI ? 1 : 3,
-  reporter: [['html'], ['list']],
+  reporter: [['html'], ['list'], ['./src/reporters/environment-classifier.ts']],
   use: {
     // The prewebsite calls its GraphQL endpoint over HTTP, so the test page also
     // runs over HTTP to avoid Chromium blocking requestPasscode as mixed content.

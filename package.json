@@ -8,6 +8,7 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
+    "health": "node scripts/check-backend-health.mjs",
     "codegen": "playwright codegen https://prewebsite.carwah.co/en"
   },
   "devDependencies": {
