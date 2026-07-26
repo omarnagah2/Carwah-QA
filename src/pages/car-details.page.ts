@@ -58,6 +58,15 @@ export class CarDetailsPage extends BasePage {
     await expect(this.paymentDialog).toBeVisible();
   }
 
+  async selectCreditCardPaymentMethod(): Promise<void> {
+    // The Mada payment path currently fails finalization with a backend 500, so
+    // pay with a credit card (Visa / Mastercard) instead.
+    await this.openPaymentMethods();
+    await this.paymentMethod('بطاقة ائتمان').click();
+    await this.paymentDialog.getByRole('button', { name: 'إغلاق' }).click();
+    await expect(this.paymentDialog).toBeHidden();
+  }
+
   async expectCorePaymentMethods(): Promise<void> {
     // These online methods are offered on every branch. Apple Pay and Cash are
     // branch-conditional, so they are not asserted here.

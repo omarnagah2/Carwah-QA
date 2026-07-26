@@ -13,4 +13,14 @@ export const testData = {
     // can be reached without the (fragile) map picker.
     car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
   },
+  // HyperPay (eu-test.oppwa.com) sandbox test cards. Any valid future expiry.
+  // NOTE: the Mada test card currently fails finalization with a backend 500,
+  // so the successful-payment test uses the Visa card.
+  payment: {
+    holder: 'Test User',
+    expiry: process.env.CARWAH_TEST_CARD_EXPIRY ?? '1228', // MM/YY -> 12/28
+    cvv: process.env.CARWAH_TEST_CARD_CVV ?? '123',
+    visaNumber: process.env.CARWAH_TEST_VISA ?? '4111111111111111',
+    madaNumber: process.env.CARWAH_TEST_MADA ?? '4464040000000007',
+  },
 };
