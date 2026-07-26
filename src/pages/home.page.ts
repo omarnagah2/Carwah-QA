@@ -25,6 +25,15 @@ export class HomePage extends BasePage {
     return this.couponWrap.getByText(this.invalidCouponMessagePattern);
   }
 
+  private get appliedCouponMessage(): Locator {
+    // The applied-coupon success label is the span wrapping the bold code.
+    return this.couponWrap.locator('span:has(span.bold)');
+  }
+
+  private get appliedCouponCode(): Locator {
+    return this.couponWrap.locator('span.bold');
+  }
+
   private get removeCouponButton(): Locator {
     return this.couponWrap.getByRole('button', { name: /\u062d\u0630\u0641|Remove/i });
   }
@@ -58,11 +67,25 @@ export class HomePage extends BasePage {
   }
 
   async logout(): Promise<void> {
-    await expect(this.accountMenuTrigger).toBeVisible();
+    await this.ensureAccountMenuTriggerVisible();
+
+    await this.accountMenuTrigger.hover();
     await this.accountMenuTrigger.click();
 
     await expect(this.logoutMenuItem).toBeVisible();
     await this.logoutMenuItem.click();
+  }
+
+  private async ensureAccountMenuTriggerVisible(): Promise<void> {
+    // The header can briefly render its logged-out variant while the persisted
+    // session rehydrates, leaving the account trigger absent. The session is
+    // already seeded from the first load, so a single reload hydrates cleanly.
+    try {
+      await expect(this.accountMenuTrigger).toBeVisible({ timeout: 10_000 });
+    } catch {
+      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(this.accountMenuTrigger).toBeVisible({ timeout: 15_000 });
+    }
   }
 
   async expectLoggedOut(): Promise<void> {
@@ -77,7 +100,18 @@ export class HomePage extends BasePage {
     await this.couponInput.fill(couponCode);
     await expect(this.couponInput).toHaveValue(couponCode);
 
+    // Applying replaces the apply button with the remove button in both the
+    // valid and invalid outcomes, so wait for it to disappear to confirm the
+    // action registered. Against the live backend the first click can be
+    // swallowed before the handler is ready, so re-click once if it lingers.
     await this.applyCouponButton.click();
+
+    try {
+      await expect(this.applyCouponButton).toBeHidden({ timeout: 5_000 });
+    } catch {
+      await this.applyCouponButton.click();
+      await expect(this.applyCouponButton).toBeHidden({ timeout: 10_000 });
+    }
   }
 
   async expectInvalidCouponFieldState(): Promise<void> {
@@ -87,6 +121,17 @@ export class HomePage extends BasePage {
     await expect(this.applyCouponButton).toBeHidden();
     await expect(this.removeCouponButton).toBeVisible();
     await expect(this.removeCouponButton).toHaveCSS('color', 'rgb(246, 86, 86)');
+  }
+
+  async expectValidCouponFieldState(couponCode: string): Promise<void> {
+    await expect(this.appliedCouponMessage).toBeVisible();
+    await expect(this.appliedCouponMessage).toHaveCSS('color', 'rgb(126, 219, 38)');
+    await expect(this.appliedCouponCode).toHaveText(couponCode, { ignoreCase: true });
+
+    await expect(this.invalidCouponValidationMessage).toBeHidden();
+
+    await expect(this.applyCouponButton).toBeHidden();
+    await expect(this.removeCouponButton).toBeVisible();
   }
 
   async removeCoupon(): Promise<void> {

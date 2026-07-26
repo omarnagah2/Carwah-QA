@@ -9,7 +9,9 @@ export default defineConfig({
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // These specs exercise a shared live pre-prod backend, so allow one local
+  // retry (two in CI) to absorb transient network/OTP timing flakiness.
+  retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html'], ['list']],
   use: {
