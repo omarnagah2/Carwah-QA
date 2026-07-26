@@ -35,7 +35,11 @@ export class LoginPage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.page.goto('/');
+    // Wait for the DOM rather than the full load event: the live site pulls in
+    // heavy third-party scripts that can delay the load event past the
+    // navigation timeout on slower browsers. The assertions below already wait
+    // for the elements we actually need.
+    await this.page.goto('/', { waitUntil: 'domcontentloaded' });
     await this.headerLoginButton.click();
     await expect(this.loginDialog).toBeVisible();
   }

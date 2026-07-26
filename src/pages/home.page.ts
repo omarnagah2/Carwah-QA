@@ -46,11 +46,15 @@ export class HomePage extends BasePage {
   }
 
   async openHomePage(): Promise<void> {
-    await this.page.goto('/');
+    // Wait for the DOM rather than the full load event: the live site pulls in
+    // heavy third-party scripts (analytics, payment widgets) that can delay the
+    // load event past the navigation timeout on slower browsers. Web-first
+    // assertions below already wait for the elements we actually need.
+    await this.page.goto('/', { waitUntil: 'domcontentloaded' });
   }
 
   async openArabicHomePage(): Promise<void> {
-    await this.page.goto('/ar');
+    await this.page.goto('/ar', { waitUntil: 'domcontentloaded' });
   }
 
   async logout(): Promise<void> {
