@@ -40,8 +40,19 @@ export class LoginPage extends BasePage {
     // navigation timeout on slower browsers. The assertions below already wait
     // for the elements we actually need.
     await this.page.goto('/', { waitUntil: 'domcontentloaded' });
-    await this.headerLoginButton.click();
-    await expect(this.loginDialog).toBeVisible();
+
+    // The header re-renders as the session state hydrates, so the login button
+    // can detach mid-click. Wait for it, then retry once if the dialog does not
+    // open on the first click.
+    await expect(this.headerLoginButton).toBeVisible();
+
+    try {
+      await this.headerLoginButton.click();
+      await expect(this.loginDialog).toBeVisible({ timeout: 10_000 });
+    } catch {
+      await this.headerLoginButton.click();
+      await expect(this.loginDialog).toBeVisible({ timeout: 15_000 });
+    }
   }
 
   async selectSmsVerification(): Promise<void> {
@@ -49,14 +60,34 @@ export class LoginPage extends BasePage {
     await expect(this.smsVerificationOption).toHaveClass(/active/);
   }
 
+  private async enterPhoneNumber(phoneNumber: string): Promise<void> {
+    // Type through the locator (which focuses the field) rather than
+    // page.keyboard, whose input WebKit occasionally drops when the click does
+    // not land focus, leaving the field on just the "+966" prefix. Verify the
+    // digits registered and re-enter once if they did not.
+    const enter = async () => {
+      await this.phoneInput.click();
+      await this.phoneInput.press('End');
+      await this.phoneInput.pressSequentially(phoneNumber, { delay: 30 });
+    };
+
+    await enter();
+
+    try {
+      await expect(this.phoneInput).not.toHaveValue(/^\+?966$/, { timeout: 3_000 });
+    } catch {
+      await this.phoneInput.fill('');
+      await enter();
+      await expect(this.phoneInput).not.toHaveValue(/^\+?966$/, { timeout: 5_000 });
+    }
+  }
+
   async requestOtp(phoneNumber: string): Promise<void> {
     await expect(this.phoneInput).toBeVisible();
 
     await this.selectSmsVerification();
 
-    await this.phoneInput.click();
-    await this.page.keyboard.press('End');
-    await this.page.keyboard.type(phoneNumber);
+    await this.enterPhoneNumber(phoneNumber);
 
     await expect(this.continueButton).toBeEnabled();
 
