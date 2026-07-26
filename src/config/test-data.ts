@@ -9,5 +9,8 @@ export const testData = {
   booking: {
     // Top-city name as shown in the Arabic home-page city picker (جدة = Jeddah).
     city: process.env.CARWAH_BOOKING_CITY ?? 'جدة',
+    // A car whose branch does not require a delivery location, so the pay action
+    // can be reached without the (fragile) map picker.
+    car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
   },
 };
