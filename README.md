@@ -44,6 +44,14 @@ Run headed:
 npm run test:headed
 ```
 
+Run headed slowly enough to follow by eye — `SLOW_MO` is the pause in
+milliseconds between browser operations, and it also raises the test timeout so
+the deliberate pauses do not trip it:
+
+```bash
+SLOW_MO=300 npx playwright test --headed
+```
+
 Open Playwright UI mode:
 
 ```bash

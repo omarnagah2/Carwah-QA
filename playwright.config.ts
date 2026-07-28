@@ -1,9 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
 import { authFile } from './src/config/auth';
 
+/**
+ * Pauses between browser operations so a headed run can be followed by eye,
+ * e.g. `SLOW_MO=300 npx playwright test --headed`. Zero (the default) leaves
+ * the run at full speed. Timeouts are not scaled, so keep it modest on the
+ * booking specs, which already take close to a minute each.
+ */
+const slowMo = Number(process.env.SLOW_MO ?? 0);
+
+/** Chromium needs the insecure-content flag; the site is served over HTTP. */
+const chromiumLaunchOptions = {
+  args: ['--allow-running-insecure-content'],
+  slowMo,
+};
+
 export default defineConfig({
   testDir: './tests',
-  timeout: 60_000,
+  // slowMo pauses every operation without extending timeouts, so give tests
+  // room when a run is deliberately slowed down for watching.
+  timeout: slowMo ? 240_000 : 60_000,
   expect: {
     timeout: 10_000,
   },
@@ -43,9 +59,7 @@ export default defineConfig({
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
       use: {
-        launchOptions: {
-          args: ['--allow-running-insecure-content'],
-        },
+        launchOptions: chromiumLaunchOptions,
       },
     },
     {
@@ -55,9 +69,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         storageState: authFile,
-        launchOptions: {
-          args: ['--allow-running-insecure-content'],
-        },
+        launchOptions: chromiumLaunchOptions,
       },
     },
     {
@@ -67,6 +79,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Firefox'],
         storageState: authFile,
+        launchOptions: { slowMo },
       },
     },
     {
@@ -76,6 +89,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Safari'],
         storageState: authFile,
+        launchOptions: { slowMo },
       },
     },
   ],
