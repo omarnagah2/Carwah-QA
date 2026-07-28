@@ -53,6 +53,32 @@ npm run health
 It reports `HEALTHY`, `SLOW`, or `DEGRADED` for the backend. If it reports
 degraded/slow, treat concurrent failures as environment-related.
 
+## Authentication
+
+Signing in happens **once per account per run**, in the `setup` project — never
+per test. Every browser project depends on that one setup, and the specs just
+reuse the saved session:
+
+| Account | Used by | Session files |
+| --- | --- | --- |
+| `598598597` | everything authenticated | `playwright/.auth/user.json` + `session.json` |
+| `591594597` | `installment-booking.spec.ts` | `playwright/.auth/user-installment.json` + `session-installment.json` |
+
+Two accounts exist because Carwah allows only one pending reservation per
+customer, so the booking tests would otherwise cancel each other's bookings.
+
+A saved session is **reused across runs** while its token is still in date
+(checked with an hour to spare), so a normal run does not depend on the OTP flow
+at all — setup drops from ~10s to well under a second. Sign in again with:
+
+```bash
+FORCE_LOGIN=1 npx playwright test
+```
+
+Login is re-run automatically when a session file is missing, unreadable, or
+close to expiry. `login.spec.ts` always exercises the real login, so a genuine
+login regression is still caught.
+
 ## Login Test
 
 The requested website is:
