@@ -22,6 +22,14 @@ export default defineConfig({
     // The prewebsite calls its GraphQL endpoint over HTTP, so the test page also
     // runs over HTTP to avoid Chromium blocking requestPasscode as mixed content.
     baseURL: process.env.BASE_URL ?? 'http://prewebsite.carwah.co/en',
+    // Grant location up front so the browser never shows its "allow location"
+    // prompt on first visit, and so distance-based data (branch distances,
+    // nearest-branch ordering) is the same on every run.
+    permissions: ['geolocation'],
+    geolocation: {
+      latitude: Number(process.env.CARWAH_GEO_LAT ?? 24.7136), // Riyadh
+      longitude: Number(process.env.CARWAH_GEO_LNG ?? 46.6753),
+    },
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
