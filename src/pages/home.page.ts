@@ -76,6 +76,43 @@ export class HomePage extends BasePage {
     return this.page.getByText('و الباقات الشهرية');
   }
 
+  private vehicleTypeCard(type: string): Locator {
+    // Cards in the "ابحث حسب السيارة" (search by vehicle type) strip are labelled
+    // with the category name only, so an exact text match picks them out. The
+    // strip is a carousel that also keeps off-screen slides in the DOM, so match
+    // the visible one rather than a hidden copy.
+    return this.page.getByText(type, { exact: true }).filter({ visible: true });
+  }
+
+  /** Search from the home page by vehicle category (Sedan, Economy, SUV, ...). */
+  async searchByVehicleType(type: string): Promise<void> {
+    const card = this.vehicleTypeCard(type).first();
+
+    // The strip renders lazily as the page is scrolled, so walk down the page
+    // until the card exists.
+    for (let attempt = 0; attempt < 10 && (await card.count()) === 0; attempt += 1) {
+      await this.page.mouse.wheel(0, 1_000);
+      await this.page.waitForTimeout(500);
+    }
+
+    // The home page occasionally comes back without its content sections, which
+    // a single reload fixes.
+    if ((await card.count()) === 0) {
+      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      for (let attempt = 0; attempt < 10 && (await card.count()) === 0; attempt += 1) {
+        await this.page.mouse.wheel(0, 1_000);
+        await this.page.waitForTimeout(500);
+      }
+    }
+
+    // The cards sit in a horizontal carousel, so one can be attached but out of
+    // view: bring it into view before asserting it is visible.
+    await card.scrollIntoViewIfNeeded();
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await card.click();
+    await this.page.waitForURL(/car-search/, { timeout: 30_000 });
+  }
+
   private get pickupDateInput(): Locator {
     return this.page.locator('div.input:has(span.floating-label:text-is("وقت استلام السيارة")) input');
   }

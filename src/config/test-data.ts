@@ -17,6 +17,13 @@ export const testData = {
     // can be reached without the (fragile) map picker.
     car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
   },
+  // Vehicle categories from the home page's "search by vehicle type" strip.
+  vehicleTypes: {
+    // Sedan — currently has cars available.
+    withResults: process.env.CARWAH_VEHICLE_TYPE_WITH_RESULTS ?? 'سيدان',
+    // Commercial — currently has none, so it shows the empty-results message.
+    withoutResults: process.env.CARWAH_VEHICLE_TYPE_WITHOUT_RESULTS ?? 'تجارية',
+  },
   // HyperPay (eu-test.oppwa.com) sandbox test cards. Any valid future expiry.
   // NOTE: the Mada test card currently fails finalization with a backend 500,
   // so the successful-payment test uses the Visa card.

@@ -14,6 +14,29 @@ export class CarListPage extends BasePage {
     return this.page.locator('.white-card');
   }
 
+  private activeFilterChip(label: string): Locator {
+    return this.page.getByText(label, { exact: true });
+  }
+
+  private get noResultsMessage(): Locator {
+    return this.page.getByText(/لا يوجد نتائج|لا يوجد سيارات متوافقة/);
+  }
+
+  /** The chosen filter is echoed back as a removable chip above the results. */
+  async expectFilteredBy(label: string): Promise<void> {
+    await expect(this.activeFilterChip(label).first()).toBeVisible({ timeout: 30_000 });
+  }
+
+  async expectResults(): Promise<void> {
+    await expect(this.carCards.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.noResultsMessage).toBeHidden();
+  }
+
+  async expectNoResults(): Promise<void> {
+    await expect(this.noResultsMessage.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.carCards).toHaveCount(0);
+  }
+
   async expectLoaded(): Promise<void> {
     // Search results come from the live backend and are noticeably slower when
     // several specs run in parallel, so allow more than the default timeout.
