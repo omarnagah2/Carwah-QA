@@ -17,6 +17,12 @@ export const testData = {
     // can be reached without the (fragile) map picker.
     car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
   },
+  rentToOwn: {
+    // A rent-to-own car whose branch does not demand a delivery location, so
+    // payment is reachable without the (fragile) map picker. The Range Rover in
+    // this listing does demand one.
+    car: process.env.CARWAH_RENT_TO_OWN_CAR ?? 'شييري تيجو',
+  },
   // Vehicle categories from the home page's "search by vehicle type" strip.
   vehicleTypes: {
     // Sedan — currently has cars available.

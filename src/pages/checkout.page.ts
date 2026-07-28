@@ -49,7 +49,12 @@ export class CheckoutPage extends BasePage {
   }
 
   private get paymentSuccessMessage(): Locator {
-    return this.page.getByText('تم الدفع بنجاح');
+    // Ordinary bookings show "تم الدفع بنجاح". Rent to own shows a different
+    // dialog whose title is an untranslated key (renttoown.status.Success), so
+    // also accept that and the confirmation body both dialogs share.
+    return this.page.getByText(
+      /تم الدفع بنجاح|renttoown\.status\.Success|حجزك ذا أولوية لدينا/,
+    );
   }
 
   private get paymentFailureMessage(): Locator {
