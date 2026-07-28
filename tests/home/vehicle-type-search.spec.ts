@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { testData } from '../src/config/test-data';
-import { HomePage } from '../src/pages/home.page';
-import { CarListPage } from '../src/pages/car-list.page';
+import { testData } from '../../src/config/test-data';
+import { HomePage } from '../../src/pages/home.page';
+import { CarListPage } from '../../src/pages/car-list.page';
 
 test.describe('Search by vehicle type', () => {
   // Searching does not require signing in.

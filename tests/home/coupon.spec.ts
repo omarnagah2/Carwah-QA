@@ -1,6 +1,6 @@
-import { testData } from '../src/config/test-data';
-import { test } from '../src/fixtures/authenticated-test';
-import { HomePage } from '../src/pages/home.page';
+import { testData } from '../../src/config/test-data';
+import { test } from '../../src/fixtures/authenticated-test';
+import { HomePage } from '../../src/pages/home.page';
 
 test.describe('Coupon', () => {
   test('should show a validation error for an invalid coupon', async ({ page }) => {

@@ -1,10 +1,10 @@
-import { createAuthenticatedTest } from '../src/fixtures/authenticated-test';
-import { installmentAccount } from '../src/config/auth';
-import { testData } from '../src/config/test-data';
-import { CarDetailsPage } from '../src/pages/car-details.page';
-import { CheckoutPage } from '../src/pages/checkout.page';
-import { MyRentalsPage } from '../src/pages/my-rentals.page';
-import { goToRentalPackageCarDetails } from '../src/utils/booking-navigation';
+import { createAuthenticatedTest } from '../../src/fixtures/authenticated-test';
+import { installmentAccount } from '../../src/config/auth';
+import { testData } from '../../src/config/test-data';
+import { CarDetailsPage } from '../../src/pages/car-details.page';
+import { CheckoutPage } from '../../src/pages/checkout.page';
+import { MyRentalsPage } from '../../src/pages/my-rentals.page';
+import { goToRentalPackageCarDetails } from '../../src/utils/booking-navigation';
 
 // Its own customer, so the pending reservation this test creates (and the
 // cancel hooks that clean it up) cannot collide with the normal booking test.

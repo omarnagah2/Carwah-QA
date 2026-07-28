@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { test as authTest } from '../src/fixtures/authenticated-test';
-import { testData } from '../src/config/test-data';
-import { HomePage } from '../src/pages/home.page';
-import { CarListPage } from '../src/pages/car-list.page';
-import { CarBranchesPage } from '../src/pages/car-branches.page';
-import { CarDetailsPage } from '../src/pages/car-details.page';
-import { CheckoutPage } from '../src/pages/checkout.page';
-import { MyRentalsPage } from '../src/pages/my-rentals.page';
-import { goToDeliveryOptionalCarDetails } from '../src/utils/booking-navigation';
+import { test as authTest } from '../../src/fixtures/authenticated-test';
+import { testData } from '../../src/config/test-data';
+import { HomePage } from '../../src/pages/home.page';
+import { CarListPage } from '../../src/pages/car-list.page';
+import { CarBranchesPage } from '../../src/pages/car-branches.page';
+import { CarDetailsPage } from '../../src/pages/car-details.page';
+import { CheckoutPage } from '../../src/pages/checkout.page';
+import { MyRentalsPage } from '../../src/pages/my-rentals.page';
+import { goToDeliveryOptionalCarDetails } from '../../src/utils/booking-navigation';
 
 test.describe('Create booking', () => {
   // The booking flow up to payment-method selection works without signing in.

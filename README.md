@@ -2,6 +2,29 @@
 
 Playwright + TypeScript automation project using Page Object Model and object-oriented design.
 
+## Test Layout
+
+Specs are grouped by feature area:
+
+```text
+tests/
+├── auth.setup.ts               # signs the accounts in (setup project)
+├── auth-installment.setup.ts
+├── auth/
+│   ├── login.spec.ts
+│   └── logout.spec.ts
+├── home/
+│   ├── coupon.spec.ts
+│   └── vehicle-type-search.spec.ts
+└── booking/
+    ├── booking.spec.ts
+    └── installment-booking.spec.ts
+```
+
+Every spec is independent — its own account where it matters, its own cleanup —
+so the run order does not affect results. Run one area with, for example,
+`npx playwright test tests/booking`.
+
 ## Setup
 
 ```bash
@@ -62,7 +85,7 @@ reuse the saved session:
 | Account | Used by | Session files |
 | --- | --- | --- |
 | `598598597` | everything authenticated | `playwright/.auth/user.json` + `session.json` |
-| `591594597` | `installment-booking.spec.ts` | `playwright/.auth/user-installment.json` + `session-installment.json` |
+| `591594597` | `tests/booking/installment-booking.spec.ts` | `playwright/.auth/user-installment.json` + `session-installment.json` |
 
 Two accounts exist because Carwah allows only one pending reservation per
 customer, so the booking tests would otherwise cancel each other's bookings.
@@ -76,7 +99,7 @@ FORCE_LOGIN=1 npx playwright test
 ```
 
 Login is re-run automatically when a session file is missing, unreadable, or
-close to expiry. `login.spec.ts` always exercises the real login, so a genuine
+close to expiry. `tests/auth/login.spec.ts` always exercises the real login, so a genuine
 login regression is still caught.
 
 ## Login Test

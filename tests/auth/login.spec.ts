@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { testData } from '../src/config/test-data';
-import { LoginPage } from '../src/pages/login.page';
+import { testData } from '../../src/config/test-data';
+import { LoginPage } from '../../src/pages/login.page';
 
 test.describe('Login', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
