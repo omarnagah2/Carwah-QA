@@ -31,6 +31,47 @@ export class CarDetailsPage extends BasePage {
       .filter({ hasText: /حجز قيد ال[إا]نتظار/ });
   }
 
+  private get proceedButton(): Locator {
+    // Rental-package (installment) bookings proceed to an installments dialog
+    // instead of paying straight away.
+    return this.page.getByRole('button', { name: /التالي|Proceed/i });
+  }
+
+  private get installmentsDialog(): Locator {
+    return this.page
+      .getByRole('dialog')
+      .filter({ hasText: /ستكون الدفعات الشهرية/ });
+  }
+
+  async proceedToInstallments(): Promise<void> {
+    await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const button = this.proceedButton.first();
+    await expect(button).toBeVisible({ timeout: 20_000 });
+    await button.click();
+  }
+
+  async expectInstallmentsDialog(): Promise<void> {
+    await expect(this.installmentsDialog).toBeVisible({ timeout: 20_000 });
+    // Splitting the amount into monthly instalments is what makes this an
+    // instalment booking, and the schedule lists the resulting payments.
+    await expect(
+      this.installmentsDialog.locator('input[type="checkbox"]').first(),
+    ).toBeChecked();
+    await expect(
+      this.installmentsDialog.getByText(/ستكون الدفعات الشهرية/),
+    ).toBeVisible();
+    await expect(
+      this.installmentsDialog.getByRole('button', { name: /ادفع ال[أآ]ن/ }),
+    ).toBeVisible();
+  }
+
+  async payFromInstallmentsDialog(): Promise<void> {
+    await this.installmentsDialog
+      .getByRole('button', { name: /ادفع ال[أآ]ن/ })
+      .first()
+      .click();
+  }
+
   async payNow(): Promise<void> {
     const button = this.payNowButton.first();
     await expect(button).toBeVisible({ timeout: 20_000 });

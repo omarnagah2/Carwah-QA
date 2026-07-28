@@ -62,6 +62,13 @@ export class CheckoutPage extends BasePage {
     return this.page.getByRole('button', { name: /ادفع ال[أآ]ن/ });
   }
 
+  private get installmentsPayButton(): Locator {
+    return this.page
+      .getByRole('dialog')
+      .filter({ hasText: /ستكون الدفعات الشهرية/ })
+      .getByRole('button', { name: /ادفع ال[أآ]ن/ });
+  }
+
   async waitForWidget(): Promise<void> {
     await expect(this.cardHolderInput).toBeVisible({ timeout: 30_000 });
     await expect(this.cardNumberFrame.locator('input[name="card.number"]')).toBeVisible({
@@ -154,7 +161,24 @@ export class CheckoutPage extends BasePage {
   }
 
   private async retryPaymentFromFailureDialog(): Promise<void> {
+    // The failure dialog animates in, so wait for the button rather than
+    // relying on the shorter default action timeout.
+    await expect(this.retryPaymentButton.first()).toBeVisible({ timeout: 25_000 });
     await this.retryPaymentButton.first().click();
+
+    // A rental-package booking goes back to the instalments dialog first, which
+    // has its own pay button before the card widget reopens; a normal booking
+    // reopens the widget directly.
+    const widgetReopened = await this.cardHolderInput
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!widgetReopened) {
+      await expect(this.installmentsPayButton.first()).toBeVisible({ timeout: 20_000 });
+      await this.installmentsPayButton.first().click();
+    }
+
     await this.waitForWidget();
   }
 }

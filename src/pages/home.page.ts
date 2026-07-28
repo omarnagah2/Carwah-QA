@@ -66,6 +66,16 @@ export class HomePage extends BasePage {
       .last();
   }
 
+  private get homeNavLink(): Locator {
+    return this.page.getByRole('link', { name: 'الرئيسية' });
+  }
+
+  private get offersAndRentalPackagesCard(): Locator {
+    // "العروض و الباقات الشهرية" (Offers and monthly rental packages) in the
+    // "Selected for you" strip; the label is split across two elements.
+    return this.page.getByText('و الباقات الشهرية');
+  }
+
   private get pickupDateInput(): Locator {
     return this.page.locator('div.input:has(span.floating-label:text-is("وقت استلام السيارة")) input');
   }
@@ -84,6 +94,22 @@ export class HomePage extends BasePage {
 
   async openArabicHomePage(): Promise<void> {
     await this.page.goto('/ar', { waitUntil: 'domcontentloaded' });
+  }
+
+  /**
+   * Returns to the home page through the header link rather than a fresh
+   * navigation. The authenticated fixture re-seeds sessionStorage on every full
+   * page load, which would reset the search back to the stored city, so the
+   * client-side route is what keeps a just-selected city.
+   */
+  async returnToHomeViaNav(): Promise<void> {
+    await this.homeNavLink.first().click();
+    await expect(this.offersAndRentalPackagesCard.first()).toBeVisible({ timeout: 30_000 });
+  }
+
+  async openOffersAndRentalPackages(): Promise<void> {
+    await this.offersAndRentalPackagesCard.first().click();
+    await this.page.waitForURL(/car-search/, { timeout: 30_000 });
   }
 
   async expectValidRentalDuration(): Promise<void> {

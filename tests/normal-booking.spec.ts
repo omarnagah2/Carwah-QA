@@ -24,6 +24,27 @@ async function goToDeliveryOptionalCarDetails(page: Page): Promise<void> {
   await expect(page).toHaveURL(/car-details/);
 }
 
+// Same car, reached through "Offers and rental packages" so the booking is a
+// monthly rental package and therefore payable in instalments.
+async function goToRentalPackageCarDetails(page: Page): Promise<void> {
+  const homePage = new HomePage(page);
+  const carListPage = new CarListPage(page);
+  const carBranchesPage = new CarBranchesPage(page);
+
+  await homePage.openArabicHomePage();
+  await homePage.searchCarsInCity(testData.booking.city);
+  // Back to the home page through the header link: a full reload would re-seed
+  // the stored session and lose the city that was just picked.
+  await homePage.returnToHomeViaNav();
+  await homePage.openOffersAndRentalPackages();
+
+  await carListPage.expectLoaded();
+  await carListPage.selectCarByName(testData.booking.car);
+  await carBranchesPage.expectLoaded();
+  await carBranchesPage.selectFirstBranch();
+  await expect(page).toHaveURL(/car-details/);
+}
+
 test.describe('Create booking', () => {
   // The booking flow up to payment-method selection works without signing in.
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -89,6 +110,30 @@ authTest.describe('Create booking - payment', () => {
     // Retries the payment on a failed gateway callback, the same way the app
     // tells the customer to, so the intermittent backend 500 in
     // hyperpay_payment_gateway.rb does not mask whether a booking can be made.
+    await checkoutPage.payAndConfirm({
+      holder: testData.payment.holder,
+      number: testData.payment.visaNumber,
+      expiry: testData.payment.expiry,
+      cvv: testData.payment.cvv,
+    });
+  });
+
+  authTest('installment booking', async ({ page }) => {
+    const carDetailsPage = new CarDetailsPage(page);
+    const checkoutPage = new CheckoutPage(page);
+
+    await goToRentalPackageCarDetails(page);
+
+    await carDetailsPage.proceedToInstallments();
+    await carDetailsPage.expectInstallmentsDialog();
+
+    // Mada finalization currently fails with a backend 500, so pay by card.
+    await carDetailsPage.selectCreditCardPaymentMethod();
+    await carDetailsPage.payFromInstallmentsDialog();
+
+    // Same payment helper as the normal booking: fills the HyperPay widget,
+    // approves 3-D Secure, and asserts the success alert (retrying the gateway
+    // callback when it returns the intermittent backend 500).
     await checkoutPage.payAndConfirm({
       holder: testData.payment.holder,
       number: testData.payment.visaNumber,
