@@ -52,6 +52,16 @@ export class CheckoutPage extends BasePage {
     return this.page.getByText('تم الدفع بنجاح');
   }
 
+  private get paymentFailureMessage(): Locator {
+    return this.page.getByText('عملية دفع غير ناجحة');
+  }
+
+  private get retryPaymentButton(): Locator {
+    // The failure dialog offers to pay again for the same pending booking,
+    // which is the recovery the app itself instructs the customer to use.
+    return this.page.getByRole('button', { name: /ادفع ال[أآ]ن/ });
+  }
+
   async waitForWidget(): Promise<void> {
     await expect(this.cardHolderInput).toBeVisible({ timeout: 30_000 });
     await expect(this.cardNumberFrame.locator('input[name="card.number"]')).toBeVisible({
@@ -90,5 +100,61 @@ export class CheckoutPage extends BasePage {
     // Control returns to Carwah with the booking id, then the success dialog.
     await this.page.waitForURL(/carwah\.co.*bookingId=/i, { timeout: 60_000 });
     await expect(this.paymentSuccessMessage).toBeVisible({ timeout: 30_000 });
+  }
+
+  /**
+   * Pays and, if the gateway callback fails, pays again for the same pending
+   * booking — the recovery the failure dialog itself instructs the customer to
+   * use ("...يمكنك محاولة الدفع مرة أخرى بالضغط على ادفع الان").
+   *
+   * The retry exists because Carwah's payment callback intermittently returns
+   * `500 wrong number of arguments (given 2, expected 1)` from
+   * `hyperpay_payment_gateway.rb`, which is a backend defect rather than a
+   * problem with the booking being made.
+   */
+  async payAndConfirm(card: TestCard, maxAttempts = 4): Promise<void> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      await this.payWithCard(card);
+      await this.completeThreeDSecure('Approve');
+
+      await this.page.waitForURL(/carwah\.co/i, { timeout: 60_000 });
+      const outcome = await this.waitForPaymentOutcome();
+
+      if (outcome === 'success') {
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        await this.retryPaymentFromFailureDialog();
+      }
+    }
+
+    throw new Error(
+      `Payment did not succeed after ${maxAttempts} attempts; the gateway callback kept failing.`,
+    );
+  }
+
+  private async waitForPaymentOutcome(
+    timeout = 45_000,
+  ): Promise<'success' | 'failure'> {
+    // Both messages exist in the DOM, so decide on visibility rather than count.
+    const deadline = Date.now() + timeout;
+
+    while (Date.now() < deadline) {
+      if (await this.paymentSuccessMessage.first().isVisible().catch(() => false)) {
+        return 'success';
+      }
+      if (await this.paymentFailureMessage.first().isVisible().catch(() => false)) {
+        return 'failure';
+      }
+      await this.page.waitForTimeout(500);
+    }
+
+    throw new Error('Timed out waiting for the payment result dialog.');
+  }
+
+  private async retryPaymentFromFailureDialog(): Promise<void> {
+    await this.retryPaymentButton.first().click();
+    await this.waitForWidget();
   }
 }

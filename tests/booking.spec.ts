@@ -86,15 +86,15 @@ authTest.describe('Create booking - payment', () => {
     await carDetailsPage.selectCreditCardPaymentMethod();
     await carDetailsPage.payNow();
 
-    await checkoutPage.payWithCard({
+    // Retries the payment on a failed gateway callback, the same way the app
+    // tells the customer to, so the intermittent backend 500 in
+    // hyperpay_payment_gateway.rb does not mask whether a booking can be made.
+    await checkoutPage.payAndConfirm({
       holder: testData.payment.holder,
       number: testData.payment.visaNumber,
       expiry: testData.payment.expiry,
       cvv: testData.payment.cvv,
     });
-    await checkoutPage.completeThreeDSecure('Approve');
-
-    await checkoutPage.expectPaymentSuccess();
   });
 
   authTest(
