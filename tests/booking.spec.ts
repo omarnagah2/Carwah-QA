@@ -76,7 +76,7 @@ authTest.describe('Create booking - payment', () => {
     await new MyRentalsPage(page).cancelAllPendingReservations();
   });
 
-  authTest('should create a booking after a successful card payment', async ({ page }) => {
+  authTest('normal booking', async ({ page }) => {
     const carDetailsPage = new CarDetailsPage(page);
     const checkoutPage = new CheckoutPage(page);
 

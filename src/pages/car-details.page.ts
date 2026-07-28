@@ -48,8 +48,10 @@ export class CarDetailsPage extends BasePage {
   }
 
   async expectPaymentSectionVisible(): Promise<void> {
-    await this.changePaymentMethodTrigger.scrollIntoViewIfNeeded();
-    await expect(this.changePaymentMethodTrigger).toBeVisible();
+    // No manual scrolling: the payment section re-renders while prices load, so
+    // scrollIntoViewIfNeeded can act on a detached element. toBeVisible() waits
+    // for a stable match and click() scrolls on its own.
+    await expect(this.changePaymentMethodTrigger).toBeVisible({ timeout: 20_000 });
   }
 
   async openPaymentMethods(): Promise<void> {
