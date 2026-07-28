@@ -72,6 +72,25 @@ export class CarDetailsPage extends BasePage {
       .click();
   }
 
+  private get deliverySection(): Locator {
+    return this.page.getByText('توصيل السيارة');
+  }
+
+  private get deliveryPickupAddress(): Locator {
+    return this.page.locator('.delivery-input');
+  }
+
+  /**
+   * A delivery booking carries the pickup location chosen during the search
+   * through to the details page, so the section shows a real address rather
+   * than the "choose a location" placeholder.
+   */
+  async expectDeliverySection(): Promise<void> {
+    await expect(this.deliverySection.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.deliveryPickupAddress.first()).toBeVisible();
+    await expect(this.deliveryPickupAddress.first()).not.toHaveText(/حدد موقع الاستلام/);
+  }
+
   async payNow(): Promise<void> {
     const button = this.payNowButton.first();
     await expect(button).toBeVisible({ timeout: 20_000 });
