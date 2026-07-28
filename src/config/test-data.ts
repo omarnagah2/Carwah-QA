@@ -34,7 +34,7 @@ export const testData = {
   // NOTE: the Mada test card currently fails finalization with a backend 500,
   // so the successful-payment test uses the Visa card.
   payment: {
-    holder: 'Test User',
+    holder: process.env.CARWAH_TEST_CARD_HOLDER ?? 'Omar Nagah',
     expiry: process.env.CARWAH_TEST_CARD_EXPIRY ?? '1228', // MM/YY -> 12/28
     cvv: process.env.CARWAH_TEST_CARD_CVV ?? '123',
     visaNumber: process.env.CARWAH_TEST_VISA ?? '4111111111111111',
