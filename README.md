@@ -62,6 +62,10 @@ To keep the automation deterministic while acknowledging that instability:
 
 - **Retries** are set to 2. Transient blips that recover on retry surface as
   `flaky`, not `failed`.
+- **One worker** by default. Running specs concurrently overloads the shared
+  backend — pages stop rendering and the booking flows fail — and serial runs
+  measurably reduce that. Override with `--workers=N` if the environment is
+  healthy and you want the speed.
 - **Failure classification**: a custom reporter
   ([environment-classifier](src/reporters/environment-classifier.ts)) tags every
   hard failure (after retries) as either *environment-related* (timeout/network

@@ -14,9 +14,11 @@ export default defineConfig({
   // Failures that survive retries are classified by the environment-classifier
   // reporter (environment-related vs automation defect).
   retries: 2,
-  // These specs share one live pre-prod backend and account, so cap local
-  // parallelism to avoid overwhelming it (which shows up as flaky timeouts).
-  workers: process.env.CI ? 1 : 3,
+  // Every spec drives the same live pre-prod backend, and running them at once
+  // overloads it: the booking flows in particular then fail on pages that never
+  // finish rendering. Serial runs measurably cut that flakiness, so one worker
+  // is the default. Override per run with `--workers=N`.
+  workers: 1,
   reporter: [['html'], ['list'], ['./src/reporters/environment-classifier.ts']],
   use: {
     // The prewebsite calls its GraphQL endpoint over HTTP, so the test page also
