@@ -15,8 +15,10 @@ export class CarListPage extends BasePage {
   }
 
   async expectLoaded(): Promise<void> {
-    await expect(this.listHeading).toBeVisible();
-    await expect(this.carCards.first()).toBeVisible();
+    // Search results come from the live backend and are noticeably slower when
+    // several specs run in parallel, so allow more than the default timeout.
+    await expect(this.listHeading).toBeVisible({ timeout: 30_000 });
+    await expect(this.carCards.first()).toBeVisible({ timeout: 30_000 });
   }
 
   async selectFirstCar(): Promise<void> {

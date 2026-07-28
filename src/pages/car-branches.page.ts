@@ -15,8 +15,10 @@ export class CarBranchesPage extends BasePage {
   }
 
   async expectLoaded(): Promise<void> {
-    await expect(this.heading).toBeVisible();
-    await expect(this.branchCards.first()).toBeVisible();
+    // The ally list is fetched from the live backend and is slower when several
+    // specs run in parallel, so allow more than the default timeout.
+    await expect(this.heading).toBeVisible({ timeout: 30_000 });
+    await expect(this.branchCards.first()).toBeVisible({ timeout: 30_000 });
   }
 
   async selectFirstBranch(): Promise<void> {
