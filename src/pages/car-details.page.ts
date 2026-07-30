@@ -120,6 +120,13 @@ export class CarDetailsPage extends BasePage {
     await expect(this.paymentDialog).toBeVisible();
   }
 
+  async selectTabbyPaymentMethod(): Promise<void> {
+    await this.openPaymentMethods();
+    await this.paymentMethod(/تابي/).click();
+    await this.paymentDialog.getByRole('button', { name: 'إغلاق' }).click();
+    await expect(this.paymentDialog).toBeHidden();
+  }
+
   async selectCreditCardPaymentMethod(): Promise<void> {
     // The Mada payment path currently fails finalization with a backend 500, so
     // pay with a credit card (Visa / Mastercard) instead.

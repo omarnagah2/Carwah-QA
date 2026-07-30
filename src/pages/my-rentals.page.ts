@@ -14,6 +14,13 @@ export class MyRentalsPage extends BasePage {
     return this.page.getByRole('dialog').filter({ hasText: 'إلغاء الطلب' });
   }
 
+  /** How many reservations are currently pending on the account. */
+  async pendingReservationCount(): Promise<number> {
+    await this.open();
+    await this.page.waitForTimeout(2_000);
+    return this.pendingStatus.count();
+  }
+
   async open(): Promise<void> {
     await this.page.goto('/ar/my-rentals', { waitUntil: 'domcontentloaded' });
     await expect(this.page.getByText('الحجوزات').first()).toBeVisible({ timeout: 30_000 });
