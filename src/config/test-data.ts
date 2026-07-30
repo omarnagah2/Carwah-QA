@@ -40,4 +40,16 @@ export const testData = {
     visaNumber: process.env.CARWAH_TEST_VISA ?? '4111111111111111',
     madaNumber: process.env.CARWAH_TEST_MADA ?? '4464040000000007',
   },
+  // Partner tags applied with ?tag=. Each shows that partner's banner above the
+  // header. Slugs are exactly as the partners' links use them, spaces included.
+  partnerTags: [
+    { tag: 'STC', message: /stc pay/i },
+    { tag: 'Saudi Airlines', message: /أميال الفرسان/ },
+    { tag: 'tamara', message: /تمارا/ },
+    { tag: 'tabby', message: /تابي/ },
+    { tag: 'qoad', message: /كود/ },
+    { tag: 'enterprise', message: /Enterprise/i },
+    { tag: 'Flynas', message: /أميالك/ },
+  ],
+  unknownPartnerTag: 'notarealpartner',
 };
