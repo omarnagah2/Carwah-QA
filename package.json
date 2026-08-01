@@ -9,7 +9,8 @@
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
     "health": "node scripts/check-backend-health.mjs",
-    "codegen": "playwright codegen https://prewebsite.carwah.co/en"
+    "codegen": "playwright codegen https://prewebsite.carwah.co/en",
+    "reset:bookings": "node scripts/reset-pending-bookings.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.0",
