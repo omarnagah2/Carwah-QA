@@ -20,6 +20,10 @@ export class CarDetailsPage extends BasePage {
     return this.paymentDialog.getByRole('heading', { name });
   }
 
+  private get closePaymentDialogButton(): Locator {
+    return this.paymentDialog.getByRole('button', { name: 'إغلاق' });
+  }
+
   private get payNowButton(): Locator {
     // The label uses الأن (alef-hamza), so match both spellings defensively.
     return this.page.getByRole('button', { name: /ادفع ال[أآ]ن/ });
@@ -120,33 +124,40 @@ export class CarDetailsPage extends BasePage {
     await expect(this.paymentDialog).toBeVisible();
   }
 
-  async selectTabbyPaymentMethod(): Promise<void> {
+  /** Open the dialog, take a method, and close it again. */
+  private async selectPaymentMethod(name: string | RegExp): Promise<void> {
     await this.openPaymentMethods();
-    await this.paymentMethod(/تابي/).click();
-    await this.paymentDialog.getByRole('button', { name: 'إغلاق' }).click();
+    await this.paymentMethod(name).click();
+    await this.closePaymentDialogButton.click();
     await expect(this.paymentDialog).toBeHidden();
+  }
+
+  async selectTabbyPaymentMethod(): Promise<void> {
+    await this.selectPaymentMethod(/تابي/);
   }
 
   async selectMadaPaymentMethod(): Promise<void> {
-    await this.openPaymentMethods();
-    await this.paymentMethod('مدى').click();
-    await this.paymentDialog.getByRole('button', { name: 'إغلاق' }).click();
-    await expect(this.paymentDialog).toBeHidden();
+    await this.selectPaymentMethod('مدى');
   }
 
   async selectCreditCardPaymentMethod(): Promise<void> {
-    await this.openPaymentMethods();
-    await this.paymentMethod('بطاقة ائتمان').click();
-    await this.paymentDialog.getByRole('button', { name: 'إغلاق' }).click();
-    await expect(this.paymentDialog).toBeHidden();
+    await this.selectPaymentMethod('بطاقة ائتمان');
   }
 
   async expectCorePaymentMethods(): Promise<void> {
     // These online methods are offered on every branch. Apple Pay and Cash are
-    // branch-conditional, so they are not asserted here.
-    await expect(this.paymentMethod('مدى')).toBeVisible(); // Mada
-    await expect(this.paymentMethod('بطاقة ائتمان')).toBeVisible(); // Visa / Mastercard
-    await expect(this.paymentMethod(/تابي/)).toBeVisible(); // Tabby
-    await expect(this.paymentMethod('3 دفعات بدون فوائد')).toBeVisible(); // Tamara
+    // branch-conditional, so they are not asserted here. The English names are
+    // carried through to the failure message: the Arabic labels do not say
+    // which provider they are, least of all Tamara's.
+    const coreMethods: [string | RegExp, string][] = [
+      ['مدى', 'Mada'],
+      ['بطاقة ائتمان', 'Visa / Mastercard'],
+      [/تابي/, 'Tabby'],
+      ['3 دفعات بدون فوائد', 'Tamara'],
+    ];
+
+    for (const [label, provider] of coreMethods) {
+      await expect(this.paymentMethod(label), `${provider} should be offered`).toBeVisible();
+    }
   }
 }
