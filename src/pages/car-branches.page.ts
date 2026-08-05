@@ -21,25 +21,33 @@ export class CarBranchesPage extends BasePage {
     await expect(this.branchCards.first()).toBeVisible({ timeout: 30_000 });
   }
 
+  /** Open a branch card and wait for the car details page it leads to. */
+  private async openBranch(card: Locator): Promise<void> {
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await card.click();
+    await this.page.waitForURL(/car-details/, { timeout: 30_000 });
+  }
+
   /**
    * Pick the pinned branch. The same location appears several times with
    * different allies, so the confirmation type is part of the identity. Fails
    * rather than falling back to another branch.
    */
   async selectPinnedBranch(label: string, confirmation: string): Promise<void> {
-    const card = this.branchCards.filter({ hasText: label }).filter({ hasText: confirmation });
+    const card = this.branchCards
+      .filter({ hasText: label })
+      .filter({ hasText: confirmation })
+      .first();
 
     await expect(
-      card.first(),
+      card,
       `pinned branch "${label}" (${confirmation}) is not offered for this car — not falling back to another branch`,
     ).toBeVisible({ timeout: 30_000 });
 
-    await card.first().click();
-    await this.page.waitForURL(/car-details/, { timeout: 30_000 });
+    await this.openBranch(card);
   }
 
   async selectFirstBranch(): Promise<void> {
-    await this.branchCards.first().click();
-    await this.page.waitForURL(/car-details/, { timeout: 30_000 });
+    await this.openBranch(this.branchCards.first());
   }
 }
