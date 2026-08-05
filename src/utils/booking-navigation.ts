@@ -40,7 +40,7 @@ export async function selectPinnedCarAndBranch(
   }
 
   await carBranchesPage.expectLoaded();
-  await carBranchesPage.selectPinnedBranch(pinned.branchLabel, pinned.branchConfirmation);
+  await carBranchesPage.selectBranchByDailyPrice(pinned.branchDailyPrice);
 
   if (carDetailsId) {
     await expect(page, 'pinned branch resolved to a different car').toHaveURL(
@@ -57,10 +57,9 @@ export async function goToDeliveryOptionalCarDetails(page: Page): Promise<void> 
   const homePage = new HomePage(page);
 
   await homePage.openArabicHomePage();
-  // Wait for the search widget to fill in its dates before searching: they are
-  // populated after hydration, and searching too early runs without a duration.
-  await homePage.expectValidRentalDuration();
-  await homePage.searchCarsInCity(testData.booking.city);
+  await homePage.selectCity(testData.booking.city);
+  await homePage.selectRentalDuration(testData.booking.duration);
+  await homePage.submitSearch();
 
   await selectPinnedCarAndBranch(page);
 }
@@ -73,8 +72,9 @@ export async function goToRentalPackageCarDetails(page: Page): Promise<void> {
   const homePage = new HomePage(page);
 
   await homePage.openArabicHomePage();
-  await homePage.expectValidRentalDuration();
-  await homePage.searchCarsInCity(testData.booking.city);
+  await homePage.selectCity(testData.booking.city);
+  await homePage.selectRentalDuration(testData.booking.duration);
+  await homePage.submitSearch();
   // Back to the home page through the header link: a full reload would re-seed
   // the stored session and lose the city that was just picked.
   await homePage.returnToHomeViaNav();

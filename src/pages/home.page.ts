@@ -1,6 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './base.page';
 
+/** How far ahead the rental starts, and how many days it runs. */
+export interface RentalDuration {
+  startOffsetDays: number;
+  days: number;
+}
+
 export class HomePage extends BasePage {
   private readonly invalidCouponMessagePattern =
     /\u0643\u0648\u0628\u0648\u0646 \u0627?\u0644\u062e\u0635\u0645 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d|invalid coupon|coupon is invalid/i;
@@ -58,12 +64,18 @@ export class HomePage extends BasePage {
     return this.page.locator('input[placeholder="موقع استلام السيارة"]');
   }
 
-  private get topCitiesPanel(): Locator {
-    // The panel that opens under the city field, headed "أبرز المدن" (Top Cities).
-    // .last() resolves to the innermost matching wrapper (document order).
-    return this.page
-      .locator('div', { has: this.page.getByRole('heading', { name: 'أبرز المدن' }) })
-      .last();
+  /**
+   * An option in the dropdown that opens under the pickup-location field. The
+   * list holds cities, airports and train stations, all as `span.color-4`, so
+   * the name is matched exactly.
+   *
+   * This deliberately does not go through the "أبرز المدن" (Top Cities)
+   * heading: that heading belongs to the **footer**, and its city entries are
+   * links that jump straight to a search — skipping the widget, the duration
+   * and the search button along with it.
+   */
+  private cityOption(city: string): Locator {
+    return this.page.locator(`span.color-4:text-is("${city}")`);
   }
 
   private get deliveryTab(): Locator {
@@ -157,11 +169,7 @@ export class HomePage extends BasePage {
     await this.deliveryTab.first().click();
     await this.page.waitForTimeout(1_500);
 
-    await expect(this.pickupCityInput).toBeVisible({ timeout: 30_000 });
-    await this.pickupCityInput.click();
-    await expect(this.topCitiesPanel).toBeVisible({ timeout: 20_000 });
-    await this.topCitiesPanel.getByText(city, { exact: true }).click();
-    await expect(this.pickupCityInput).toHaveValue(city, { timeout: 10_000 });
+    await this.selectCity(city);
 
     await this.setDeliveryPickupLocation();
 
@@ -237,6 +245,35 @@ export class HomePage extends BasePage {
     return this.page.locator('div.input:has(span.floating-label:text-is("وقت تسليم السيارة")) input');
   }
 
+  /**
+   * The date picker is react-multi-date-picker. Its own `rmdp-*` classes are
+   * what we anchor on: the wrapper around it is a CSS-module class whose hash
+   * changes with every bundle build.
+   */
+  private get calendar(): Locator {
+    return this.page.locator('.rmdp-calendar');
+  }
+
+  private get nextMonthArrow(): Locator {
+    return this.page.locator('.rmdp-arrow-container.rmdp-right');
+  }
+
+  /**
+   * A selectable day in the visible month. Past days are `rmdp-disabled` and
+   * the adjacent months' filler cells are `rmdp-day-hidden`; excluding both
+   * keeps the match to days that can actually be booked.
+   */
+  private dayCell(day: number): Locator {
+    return this.page.locator(
+      `.rmdp-day-picker .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden):has(span:text-is("${day}"))`,
+    );
+  }
+
+  /** `#apply` rather than the label: the coupon box has a "تطبيق" button too. */
+  private get applyDatesButton(): Locator {
+    return this.page.locator('button#apply');
+  }
+
   async openHomePage(): Promise<void> {
     // Wait for the DOM rather than the full load event: the live site pulls in
     // heavy third-party scripts (analytics, payment widgets) that can delay the
@@ -265,24 +302,67 @@ export class HomePage extends BasePage {
     await this.page.waitForURL(/car-search/, { timeout: 30_000 });
   }
 
-  async expectValidRentalDuration(): Promise<void> {
-    // The daily search is pre-filled with a valid future pickup/return range, so
-    // confirm both bounds are set before searching. The values are populated
-    // after the search widget hydrates, so allow extra time under load.
-    await expect(this.pickupDateInput).not.toHaveValue('', { timeout: 20_000 });
-    await expect(this.dropoffDateInput).not.toHaveValue('', { timeout: 20_000 });
-  }
-
-  async searchCarsInCity(city: string): Promise<void> {
-    // Opening the city field reveals a "Top Cities" quick-pick; choosing a city
-    // runs the search with the pre-filled valid duration and routes to the car
-    // list page.
-    await expect(this.pickupCityInput).toBeVisible();
+  /** Take a city from the pickup-location dropdown. Does not search. */
+  async selectCity(city: string): Promise<void> {
+    await expect(this.pickupCityInput).toBeVisible({ timeout: 30_000 });
     await this.pickupCityInput.click();
 
-    await expect(this.topCitiesPanel).toBeVisible();
-    await this.topCitiesPanel.getByText(city, { exact: true }).click();
+    const option = this.cityOption(city).first();
+    await expect(option, `"${city}" is not offered in the pickup-location list`).toBeVisible({
+      timeout: 20_000,
+    });
+    await option.click();
 
+    await expect(this.pickupCityInput).toHaveValue(city, { timeout: 10_000 });
+  }
+
+  /**
+   * Choose the rental window in the calendar.
+   *
+   * The two date fields are `readonly`, so the picker is the only way to set
+   * them: take the pickup day, take the return day, and apply. The calendar
+   * opens on the current month, and both days are clicked as a range, which is
+   * what the widget expects — a second click sets the end rather than moving
+   * the start.
+   */
+  async selectRentalDuration({ startOffsetDays, days }: RentalDuration): Promise<void> {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() + startOffsetDays);
+    const end = new Date(start);
+    end.setDate(start.getDate() + days);
+
+    await this.pickupDateInput.click();
+    await expect(this.calendar).toBeVisible({ timeout: 20_000 });
+
+    // The calendar opens on today's month and only ever moves forward here,
+    // so track how far it has been advanced rather than re-reading its header.
+    let shownMonthOffset = 0;
+    const monthsFromToday = (date: Date): number =>
+      (date.getFullYear() - today.getFullYear()) * 12 + (date.getMonth() - today.getMonth());
+
+    for (const target of [start, end]) {
+      for (const wanted = monthsFromToday(target); shownMonthOffset < wanted; shownMonthOffset += 1) {
+        await this.nextMonthArrow.first().click();
+        await this.page.waitForTimeout(400);
+      }
+      await this.dayCell(target.getDate()).first().click();
+      await this.page.waitForTimeout(400);
+    }
+
+    await this.applyDatesButton.click();
+    await expect(this.calendar).toBeHidden({ timeout: 10_000 });
+
+    // Both fields render as "<day> <month> <year> <time>", so the day is what
+    // confirms the range landed where it was aimed.
+    await expect(this.pickupDateInput).toHaveValue(new RegExp(`^${start.getDate()}\\s`));
+    await expect(this.dropoffDateInput).toHaveValue(new RegExp(`^${end.getDate()}\\s`));
+  }
+
+  /** Run the search and wait for the results page. */
+  async submitSearch(): Promise<void> {
+    await expect(this.searchButton.first()).toBeVisible({ timeout: 20_000 });
+    await this.searchButton.first().click();
     await this.page.waitForURL(/car-search/, { timeout: 30_000 });
   }
 

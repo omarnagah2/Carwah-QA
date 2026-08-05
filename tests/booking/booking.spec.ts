@@ -22,8 +22,9 @@ test.describe('Create booking', () => {
     const carDetailsPage = new CarDetailsPage(page);
 
     await homePage.openArabicHomePage();
-    await homePage.expectValidRentalDuration();
-    await homePage.searchCarsInCity(testData.booking.city);
+    await homePage.selectCity(testData.booking.city);
+    await homePage.selectRentalDuration(testData.booking.duration);
+    await homePage.submitSearch();
 
     await carListPage.expectLoaded();
     await carListPage.selectFirstCar();
@@ -80,6 +81,12 @@ authTest.describe('Create booking - payment', () => {
       expiry: testData.payment.expiry,
       cvv: testData.payment.cvv,
     });
+
+    // Follow the success dialog to the booking it created and release it, which
+    // is the journey a customer takes. `afterEach` stays as the safety net for
+    // a run that fails before reaching here.
+    await carDetailsPage.openRentalDetailsFromSuccess();
+    await carDetailsPage.cancelReservation();
   });
 
   authTest(

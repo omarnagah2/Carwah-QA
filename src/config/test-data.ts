@@ -17,12 +17,24 @@ export const testData = {
     // can be reached without the (fragile) map picker.
     car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
     /**
+     * The rental window every booking spec picks in the calendar. The defaults
+     * reproduce the range the widget pre-fills — today, for three days — so the
+     * duration is now chosen deliberately without changing which cars and
+     * prices the search returns.
+     */
+    duration: {
+      startOffsetDays: Number(process.env.CARWAH_BOOKING_START_OFFSET_DAYS ?? 0),
+      days: Number(process.env.CARWAH_BOOKING_DURATION_DAYS ?? 3),
+    },
+    /**
      * The one vehicle every booking type except rent-to-own books, picked out of
      * the real results rather than navigated to, so the journey still covers
      * search and selection. Rent-to-own has its own inventory and is untouched.
      */
     pinned: {
-      // Typed into the car-list search box. It needs Enter to apply.
+      // Typed into the car-list search box. It needs Enter to apply. The box
+      // matches Arabic and Latin alike by design, so 'symbol' returns the same
+      // results as 'سيمبول' — the term is not a language dependency.
       searchTerm: process.env.CARWAH_CAR_SEARCH_TERM ?? 'سيمبول',
       // Three cars match "رينو سيمبول"; the branch count is what separates the
       // ﷼110 three-branch listing from the 2022 and the ﷼61 one-branch ones.
@@ -33,9 +45,12 @@ export const testData = {
       // Delivery search: the same car shows at one branch there, as do the
       // others, so its daily price is what tells them apart.
       deliveryPrice: process.env.CARWAH_PINNED_DELIVERY_PRICE ?? '200',
-      // Its branches page lists three السنوسي allies; only one is تأكيد فوري.
-      branchLabel: process.env.CARWAH_PINNED_BRANCH ?? 'السنوسي',
-      branchConfirmation: process.env.CARWAH_PINNED_BRANCH_CONFIRMATION ?? 'تأكيد فوري',
+      // Its branches page lists three allies, all at the same location, so the
+      // daily price is what tells them apart: this one at 200, the other two at
+      // 110. Location and confirmation type are deliberately not used — every
+      // ally shares the location, and the confirmation type is a branch feature
+      // that can be switched on and off.
+      branchDailyPrice: process.env.CARWAH_PINNED_BRANCH_DAILY_PRICE ?? '200',
       // What that selection resolves to, asserted so a silent inventory change
       // fails loudly instead of quietly booking a different car.
       carBranchesId: process.env.CARWAH_CAR_BRANCHES_ID ?? '16634',

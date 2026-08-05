@@ -76,6 +76,9 @@ export class CarListPage extends BasePage {
   async searchForCar(term: string): Promise<void> {
     await expect(this.listSearchInput).toBeVisible({ timeout: 30_000 });
     await this.listSearchInput.click();
+    // Reaching the list a second time within one test keeps the previous term
+    // in the box, and typing would append to it — "سيمبولسيمبول" matches nothing.
+    await this.listSearchInput.clear();
     await this.listSearchInput.pressSequentially(term, { delay: 120 });
     await this.page.keyboard.press('Enter');
 

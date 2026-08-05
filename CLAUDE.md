@@ -24,6 +24,7 @@ npx playwright test tests/booking       # one area
 SLOW_MO=300 npx playwright test --headed  # watchable pace
 npm run health                          # is the backend up?
 npm run reset:bookings                  # cancel pending reservations
+npm run clean:cache                     # drop the cached Next.js bundle
 FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 ```
 
@@ -36,6 +37,17 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - **Pre-prod is unstable.** Timeouts and "element not found" bursts are usually the
   environment. Check `npm run health` and watch for `NS_ERROR_UNKNOWN_HOST`.
   `retries: 2` and the environment-classifier reporter exist for this.
+- **The web origin rate-limits per IP**, and answers a tripped limit with a page
+  whose whole body is `{"Message":"Rate limit exceed"}`. It throttles assets, not
+  the GraphQL API, so the usual symptom is a blank page and a missing selector
+  rather than anything mentioning a limit — check the trace for 429s before
+  believing a selector broke. `src/utils/origin-routing.ts` keeps us under it:
+  decorative assets are dropped, and the content-hashed `_next/static` bundle
+  (~60% of our requests, and where every observed 429 landed) is cached on disk
+  under `.cache/`, because each test gets a fresh context and so an empty HTTP
+  cache. A 429 that survives backoff starts a cooldown in
+  `src/utils/rate-limit.ts`, so the next test waits the window out instead of
+  retrying into a hot limiter; `RATE_LIMIT_COOLDOWN_MS` tunes it.
 - **Sessions are reused across runs** while the token is valid, so a normal run
   never touches the flaky OTP flow. `login.spec.ts` still exercises real login.
 - **One customer, one sign-in per run**: `534271861`, in the single `setup`
@@ -56,6 +68,21 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 
 ## Booking rules
 
+- **The search journey is city → duration → search**, in that order, and all
+  three are real interactions with the home widget. Two traps:
+  - The `أبرز المدن` ("Top Cities") heading is in the **footer**, not the
+    dropdown. Its city entries are links that jump straight to a search,
+    skipping the widget, the duration and the search button. Take the city from
+    the dropdown under the pickup field (`span.color-4`) instead.
+  - The date fields are `readonly`, so the duration can only be set through the
+    calendar (react-multi-date-picker, `.rmdp-*`): click the pickup day, the
+    return day, then `button#apply` — `تطبيق` alone also matches the coupon box.
+  Defaults live in `testData.booking.duration` and reproduce the range the
+  widget pre-fills (today, three days), so choosing it deliberately does not
+  change which cars or prices come back.
+- Searching now routes client-side, so a spec that reaches the car list twice
+  finds the previous term still in the search box — `searchForCar` clears it
+  first, or the terms concatenate and match nothing.
 - A booking test needs **zero pending reservations**. That is a business
   precondition: tests **assert** it and fail fast; they do not cancel to force it.
   Clearing between runs is `npm run reset:bookings`.
@@ -64,6 +91,22 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - Cars/branches matter: the Renault (`رينو سيمبول`) branch pays without a delivery
   location; the Range Rover branch demands the fragile map picker. Pinned in
   test-data.
+- **The branch is identified by its daily price**, not its location or
+  confirmation type. All three allies for the pinned car sit at the same
+  location, and `تأكيد فوري` is a feature a branch can have switched on or off —
+  neither identifies anything. The pinned one is at 200/day, the others at 110.
+  The block holding an ally is found by what it contains (`.inner-card` plus its
+  `.price-label`), because its own class is a styled-components hash.
+- The car-list search box matches Arabic and Latin alike, by design: `symbol`
+  and `سيمبول` return the same results, so the term is not a language choice.
+- **A booking is cancelled from its own details page**, never from a menu on the
+  rentals list. `car-details?...&bookingId=…` carries a cancel action that opens
+  the reasons dialog; the confirm button shares its label with the link that
+  opened it, so it is taken by `button.cancelReasons`, and it stays disabled
+  until a reason is chosen. Two ways in, both ending at
+  `CarDetailsPage.cancelReservation()`: the payment-success dialog's
+  `مشاهدة تفاصيل الحجز`, and clicking the pending card on `my-rentals` — the
+  card is itself the link to the booking.
 
 ## Payment gotchas
 
@@ -91,10 +134,11 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
    `expectSuccess`) with Visa, Mada and Tabby implementations; keep one spec per
    booking type on the default card, plus one spec parameterised across methods.
    Tabby's `expectSuccess` stays URL-based until the https question is answered.
-2. Add best-effort `afterEach` cleanup of the booking a test created, keeping the
-   precondition assertion.
-3. The environment-classifier reporter printed nothing for a run of 40
+2. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
+3. `installment`, `tabby`, `delivery` and `rent-to-own` still release their
+   booking through the `afterEach` sweep only. Whichever of them ends on a
+   success dialog could follow the same route the card specs now take.
 
 ## Working style that worked here
 

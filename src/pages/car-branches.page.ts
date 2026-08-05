@@ -29,22 +29,40 @@ export class CarBranchesPage extends BasePage {
   }
 
   /**
-   * Pick the pinned branch. The same location appears several times with
-   * different allies, so the confirmation type is part of the identity. Fails
-   * rather than falling back to another branch.
+   * The block for one ally: its `.inner-card` header and its `.price-label`
+   * badge sit in separate subtrees, so the block is their nearest common
+   * ancestor — `.last()` is the innermost div holding both. The block's own
+   * class is a styled-components hash that changes with every build, which is
+   * why it is found by what it contains rather than by name.
    */
-  async selectPinnedBranch(label: string, confirmation: string): Promise<void> {
-    const card = this.branchCards
-      .filter({ hasText: label })
-      .filter({ hasText: confirmation })
-      .first();
+  private branchBlockAtDailyPrice(dailyPrice: string): Locator {
+    return this.page
+      .locator('div')
+      .filter({ has: this.branchCards })
+      .filter({
+        has: this.page
+          .locator('.price-label')
+          // Guard the leading digit so "200" cannot match "1200".
+          .filter({ hasText: new RegExp(`(?:^|[^\\d])${dailyPrice}\\s*/`) }),
+      })
+      .last();
+  }
+
+  /**
+   * Pick the branch by its daily price. Every ally for this car is at the same
+   * location, and the confirmation type is a branch feature that can be turned
+   * on and off, so neither identifies a branch — the price does. Fails rather
+   * than falling back to another branch.
+   */
+  async selectBranchByDailyPrice(dailyPrice: string): Promise<void> {
+    const block = this.branchBlockAtDailyPrice(dailyPrice);
 
     await expect(
-      card,
-      `pinned branch "${label}" (${confirmation}) is not offered for this car — not falling back to another branch`,
+      block,
+      `no branch at ${dailyPrice}/day is offered for this car — not falling back to another branch`,
     ).toBeVisible({ timeout: 30_000 });
 
-    await this.openBranch(card);
+    await this.openBranch(block.locator('.inner-card').first());
   }
 
   async selectFirstBranch(): Promise<void> {

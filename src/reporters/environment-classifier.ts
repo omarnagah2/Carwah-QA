@@ -18,6 +18,13 @@ import type {
 const ENVIRONMENT_ERROR_PATTERN =
   /timeout|timed out|exceeded|net::ERR|NS_ERROR|ECONN|ETIMEDOUT|socket hang up|ERR_CONNECTION|navigation (?:to|failed)|frame was detached|target closed/i;
 
+/**
+ * Rate limiting is environment-related too, but it reads as an ordinary timeout
+ * once the throttled bundle leaves the page blank, so call it out by name — the
+ * fix is to wait, not to look for a broken selector.
+ */
+const RATE_LIMIT_PATTERN = /rate limit|\b429\b/i;
+
 function projectName(test: TestCase): string {
   let suite: Suite | undefined = test.parent;
   while (suite) {
@@ -61,16 +68,25 @@ export default class EnvironmentClassifierReporter implements Reporter {
     const lines: string[] = [];
 
     for (const test of failures) {
-      const isEnvironment = ENVIRONMENT_ERROR_PATTERN.test(lastErrorText(test));
+      const errorText = lastErrorText(test);
+      const isRateLimited = RATE_LIMIT_PATTERN.test(errorText);
+      const isEnvironment = isRateLimited || ENVIRONMENT_ERROR_PATTERN.test(errorText);
       if (isEnvironment) {
         environmentCount += 1;
       } else {
         defectCount += 1;
       }
 
-      const label = isEnvironment
-        ? 'ENVIRONMENT-RELATED (backend latency — verify deploy window via `npm run health`)'
-        : 'AUTOMATION/PRODUCT DEFECT (investigate)';
+      let label: string;
+      if (isRateLimited) {
+        label =
+          'RATE-LIMITED (the origin refused requests — let the window drain before re-running)';
+      } else if (isEnvironment) {
+        label =
+          'ENVIRONMENT-RELATED (backend latency — verify deploy window via `npm run health`)';
+      } else {
+        label = 'AUTOMATION/PRODUCT DEFECT (investigate)';
+      }
       lines.push(`  • [${projectName(test)}] ${test.title}\n      → ${label}`);
     }
 

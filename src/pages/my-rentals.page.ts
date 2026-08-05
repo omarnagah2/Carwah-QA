@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './base.page';
+import { CarDetailsPage } from './car-details.page';
 
 export class MyRentalsPage extends BasePage {
   constructor(page: Page) {
@@ -10,9 +11,6 @@ export class MyRentalsPage extends BasePage {
     return this.page.getByText(/قيد ال[إا]نتظار/);
   }
 
-  private get cancelDialog(): Locator {
-    return this.page.getByRole('dialog').filter({ hasText: 'إلغاء الطلب' });
-  }
 
   /** How many reservations are currently pending on the account. */
   async pendingReservationCount(): Promise<number> {
@@ -43,35 +41,19 @@ export class MyRentalsPage extends BasePage {
       if (!(await this.hasPending())) {
         return;
       }
-      await this.cancelFirstPending();
+      await this.openFirstPending();
+      await new CarDetailsPage(this.page).cancelReservation();
     }
   }
 
-  private async cancelFirstPending(): Promise<void> {
-    // Open the "..." actions menu on the pending card, then Cancel Reservation.
-    await this.pendingStatus.first().evaluate((el) => {
-      let node: HTMLElement | null = el as HTMLElement;
-      for (let i = 0; i < 10 && node?.parentElement; i += 1) {
-        node = node.parentElement;
-        const dots = node?.querySelector('button.dots') as HTMLButtonElement | null;
-        if (dots) {
-          dots.click();
-          return;
-        }
-      }
-    });
-
-    await this.page.getByText('إلغاء الحجز').first().click();
-
-    // The confirm button is disabled until a cancellation reason is chosen.
-    await expect(this.cancelDialog).toBeVisible();
-    await this.cancelDialog.locator('input[name="cancel-reason"]').first().check({ force: true });
-    const confirm = this.cancelDialog.getByRole('button', { name: 'إلغاء الحجز' });
-    await expect(confirm).toBeEnabled();
-    await confirm.click();
-
-    await expect(this.page.getByText(/تم .*ألغاء الحجز بنجاح|تم إلغاء الحجز/)).toBeVisible({
-      timeout: 20_000,
-    });
+  /**
+   * Open the pending reservation's own details page, which is where a booking
+   * is cancelled from. The card itself is the link — the previous route went
+   * through the card's "..." menu, which was only reachable by walking up the
+   * DOM from the status label.
+   */
+  private async openFirstPending(): Promise<void> {
+    await this.pendingStatus.first().click();
+    await this.page.waitForURL(/bookingId=/, { timeout: 30_000 });
   }
 }

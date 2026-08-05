@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { test as base, type Page } from '@playwright/test';
+import { test as base } from '@playwright/test';
 import { primaryAccount } from '../config/auth';
+import { routeOriginTraffic } from '../utils/origin-routing';
+import { waitOutRateLimit } from '../utils/rate-limit';
 
 /**
  * Top-level sessionStorage keys worth restoring: the session itself, plus the
@@ -63,33 +65,20 @@ function readSeed(sessionFile: string): SessionSeed {
  * Pair it with `test.use({ storageState: account.storageState })` in the spec so
  * both halves of the session come from the same account.
  */
-/**
- * Cloudflare rate-limits requests to the web origin, and a page load fetches
- * around 48 of them in a single second — mostly images and fonts. The 429s land
- * on those assets and on page routes; the GraphQL API is never throttled.
- *
- * Dropping the decorative ones cuts the burst without changing what the tests
- * assert: no locator here matches an image, and the Google Maps tiles the
- * delivery picker needs come from another host, so they are untouched.
- */
-async function dropDecorativeAssets(page: Page): Promise<void> {
-  await page.route('http://prewebsite.carwah.co/**', (route) => {
-    const type = route.request().resourceType();
-    const url = route.request().url();
-
-    if (type === 'image' || type === 'font' || type === 'media' || url.includes('/cdn-cgi/rum')) {
-      return route.abort();
-    }
-
-    return route.continue();
-  });
-}
-
 export function createAuthenticatedTest(sessionFile: string) {
   return base.extend({
-    page: async ({ page }, use) => {
+    page: async ({ page }, use, testInfo) => {
+      // A retry that starts straight after a 429 re-fires the whole journey
+      // into a limiter that is still hot, so wait its window out first — and
+      // hand the test back the time that cost it, since fixture setup counts
+      // against the test timeout.
+      const waited = await waitOutRateLimit();
+      if (waited > 0) {
+        testInfo.setTimeout(testInfo.timeout + waited);
+      }
+
       const seed = readSeed(sessionFile);
-      await dropDecorativeAssets(page);
+      await routeOriginTraffic(page);
 
       await page.addInitScript((session: SessionSeed) => {
         if (window.location.hostname !== 'prewebsite.carwah.co') {

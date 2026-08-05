@@ -101,6 +101,58 @@ export class CarDetailsPage extends BasePage {
     await button.click();
   }
 
+  private get rentalDetailsAction(): Locator {
+    // Offered by both the payment-success dialog and the pending-rental alert.
+    // Not a button or a link — plain text with a handler on it.
+    return this.page.getByText('مشاهدة تفاصيل الحجز');
+  }
+
+  private get cancelReservationLink(): Locator {
+    return this.page.getByText('إلغاء الحجز', { exact: true });
+  }
+
+  private get cancelReasonsDialog(): Locator {
+    return this.page.getByRole('dialog').filter({ hasText: 'إلغاء الطلب' });
+  }
+
+  /**
+   * Follow the payment-success dialog through to the booking it created, which
+   * is this same page addressed by `bookingId`. The reload is what the customer
+   * does too: the details arrive with the fresh load, and the cancel action
+   * comes with them.
+   */
+  async openRentalDetailsFromSuccess(): Promise<void> {
+    await expect(this.rentalDetailsAction.first()).toBeVisible({ timeout: 30_000 });
+    await this.rentalDetailsAction.first().click();
+    await this.page.waitForURL(/bookingId=/, { timeout: 30_000 });
+    await this.page.reload({ waitUntil: 'domcontentloaded' });
+  }
+
+  /**
+   * Cancel the booking whose details page is open, which is where the customer
+   * cancels from. The confirm button carries the same label as the link that
+   * opens the dialog, so it is taken by its own class instead; it stays
+   * disabled until a reason is chosen.
+   */
+  async cancelReservation(): Promise<void> {
+    const link = this.cancelReservationLink.first();
+    await expect(link, 'this booking offers no cancel action').toBeVisible({ timeout: 30_000 });
+    await link.click();
+
+    await expect(this.cancelReasonsDialog).toBeVisible({ timeout: 20_000 });
+    await this.cancelReasonsDialog
+      .locator('input[name="cancel-reason"]')
+      .first()
+      .check({ force: true });
+
+    const confirm = this.cancelReasonsDialog.locator('button.cancelReasons');
+    await expect(confirm).toBeEnabled({ timeout: 10_000 });
+    await confirm.click();
+
+    // Cancelling lands back on the rentals list.
+    await this.page.waitForURL(/my-rentals/, { timeout: 30_000 });
+  }
+
   async expectPendingRentalAlert(): Promise<void> {
     await expect(this.pendingRentalDialog).toBeVisible();
     await expect(

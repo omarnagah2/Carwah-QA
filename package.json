@@ -10,7 +10,8 @@
     "report": "playwright show-report",
     "health": "node scripts/check-backend-health.mjs",
     "codegen": "playwright codegen https://prewebsite.carwah.co/en",
-    "reset:bookings": "node scripts/reset-pending-bookings.mjs"
+    "reset:bookings": "node scripts/reset-pending-bookings.mjs",
+    "clean:cache": "node -e \"require('node:fs').rmSync('.cache', { recursive: true, force: true })\""
   },
   "devDependencies": {
     "@playwright/test": "^1.53.0",
