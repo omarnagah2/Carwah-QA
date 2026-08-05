@@ -9,6 +9,12 @@ test.describe('Tabby booking', () => {
   // Drives Tabby's hosted checkout; only reliable on Chromium.
   test.skip(({ browserName }) => browserName !== 'chromium', 'Payment gateway; Chromium only.');
 
+  // Release the booking this test makes, so the next test that asserts the
+  // zero-pending precondition is not blocked by it.
+  test.afterEach(async ({ page }) => {
+    await new MyRentalsPage(page).cancelAllPendingReservations();
+  });
+
   test('tabby booking', async ({ page }) => {
     test.setTimeout(300_000);
     const myRentals = new MyRentalsPage(page);
