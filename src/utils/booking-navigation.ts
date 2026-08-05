@@ -16,24 +16,37 @@ const pinned = testData.booking.pinned;
  *
  * Rent-to-own does not use this — it has its own inventory and vehicles.
  */
-export async function selectPinnedCarAndBranch(page: Page): Promise<void> {
+export async function selectPinnedCarAndBranch(
+  page: Page,
+  options: { discriminator?: string; carBranchesId?: string; carDetailsId?: string } = {},
+): Promise<void> {
+  const {
+    discriminator = pinned.carBranchCount,
+    carBranchesId = pinned.carBranchesId,
+    carDetailsId = pinned.carDetailsId,
+  } = options;
+
   const carListPage = new CarListPage(page);
   const carBranchesPage = new CarBranchesPage(page);
 
   await carListPage.expectLoaded();
   await carListPage.searchForCar(pinned.searchTerm);
-  await carListPage.selectPinnedCar(pinned.carLabel, pinned.carBranchCount);
+  await carListPage.selectPinnedCar(pinned.carLabel, discriminator);
 
-  await expect(page, 'pinned car resolved to a different branches page').toHaveURL(
-    new RegExp(`car-branches/${pinned.carBranchesId}`),
-  );
+  if (carBranchesId) {
+    await expect(page, 'pinned car resolved to a different branches page').toHaveURL(
+      new RegExp(`car-branches/${carBranchesId}`),
+    );
+  }
 
   await carBranchesPage.expectLoaded();
   await carBranchesPage.selectPinnedBranch(pinned.branchLabel, pinned.branchConfirmation);
 
-  await expect(page, 'pinned branch resolved to a different car').toHaveURL(
-    new RegExp(`car-details\\?car=${pinned.carDetailsId}`),
-  );
+  if (carDetailsId) {
+    await expect(page, 'pinned branch resolved to a different car').toHaveURL(
+      new RegExp(`car-details\\?car=${carDetailsId}`),
+    );
+  }
 }
 
 /**

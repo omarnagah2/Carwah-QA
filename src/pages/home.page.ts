@@ -143,10 +143,25 @@ export class HomePage extends BasePage {
     throw new Error('Could not pick a delivery location inside the service area.');
   }
 
-  /** Switch to the delivery tab, choose a pickup location, and search. */
-  async searchWithDelivery(): Promise<void> {
+  /**
+   * Switch to the delivery tab, choose the city, pick a pickup location, and
+   * search.
+   *
+   * The city comes first on purpose: it is what re-centres the location
+   * picker's map. Without it the map opens on the app's default area (Riyadh)
+   * and every pin the picker can drop is a Riyadh address, whatever the
+   * browser's geolocation says — so the search returns another city's cars.
+   */
+  async searchWithDelivery(city: string): Promise<void> {
     await expect(this.deliveryTab.first()).toBeVisible({ timeout: 30_000 });
     await this.deliveryTab.first().click();
+    await this.page.waitForTimeout(1_500);
+
+    await expect(this.pickupCityInput).toBeVisible({ timeout: 30_000 });
+    await this.pickupCityInput.click();
+    await expect(this.topCitiesPanel).toBeVisible({ timeout: 20_000 });
+    await this.topCitiesPanel.getByText(city, { exact: true }).click();
+    await expect(this.pickupCityInput).toHaveValue(city, { timeout: 10_000 });
 
     await this.setDeliveryPickupLocation();
 

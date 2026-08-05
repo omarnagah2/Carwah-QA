@@ -31,12 +31,16 @@ test.describe('Delivery booking', () => {
 
     // 1-4. Home page -> delivery tab -> pick a location -> search.
     await homePage.openArabicHomePage();
-    await homePage.searchWithDelivery();
+    await homePage.searchWithDelivery(testData.booking.city);
     await expect(page).toHaveURL(/car-search/);
 
     // 5-6. The results are the usual listing, so take the same pinned car and
     //      branch every other booking type uses.
-    await selectPinnedCarAndBranch(page);
+    await selectPinnedCarAndBranch(page, {
+      discriminator: testData.booking.pinned.deliveryPrice,
+      // Delivery reaches the same car through its own branches page id.
+      carBranchesId: '17089',
+    });
 
     // 7. What makes this a delivery booking: the details page carries the
     //    pickup location chosen during the search.

@@ -27,7 +27,12 @@ export const testData = {
       // Three cars match "رينو سيمبول"; the branch count is what separates the
       // ﷼110 three-branch listing from the 2022 and the ﷼61 one-branch ones.
       carLabel: process.env.CARWAH_PINNED_CAR ?? 'رينو سيمبول 2024',
+      // City search: three listings share the name, and only this one is at
+      // three branches.
       carBranchCount: process.env.CARWAH_PINNED_CAR_BRANCHES ?? '3 فرع',
+      // Delivery search: the same car shows at one branch there, as do the
+      // others, so its daily price is what tells them apart.
+      deliveryPrice: process.env.CARWAH_PINNED_DELIVERY_PRICE ?? '200',
       // Its branches page lists three السنوسي allies; only one is تأكيد فوري.
       branchLabel: process.env.CARWAH_PINNED_BRANCH ?? 'السنوسي',
       branchConfirmation: process.env.CARWAH_PINNED_BRANCH_CONFIRMATION ?? 'تأكيد فوري',
