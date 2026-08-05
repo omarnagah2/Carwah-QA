@@ -14,12 +14,24 @@ export class CarListPage extends BasePage {
     return this.page.locator('.white-card');
   }
 
+  /** The search box above the results; MUI renders it without a placeholder. */
+  private get listSearchInput(): Locator {
+    return this.page.locator('input.MuiOutlinedInput-input').first();
+  }
+
   private activeFilterChip(label: string): Locator {
     return this.page.getByText(label, { exact: true });
   }
 
   private get noResultsMessage(): Locator {
     return this.page.getByText(/لا يوجد نتائج|لا يوجد سيارات متوافقة/);
+  }
+
+  async expectLoaded(): Promise<void> {
+    // Search results come from the live backend and are noticeably slower when
+    // several specs run in parallel, so allow more than the default timeout.
+    await expect(this.listHeading).toBeVisible({ timeout: 30_000 });
+    await this.expectResults();
   }
 
   /** The chosen filter is echoed back as a removable chip above the results. */
@@ -37,21 +49,23 @@ export class CarListPage extends BasePage {
     await expect(this.carCards).toHaveCount(0);
   }
 
-  async expectLoaded(): Promise<void> {
-    // Search results come from the live backend and are noticeably slower when
-    // several specs run in parallel, so allow more than the default timeout.
-    await expect(this.listHeading).toBeVisible({ timeout: 30_000 });
-    await expect(this.carCards.first()).toBeVisible({ timeout: 30_000 });
-  }
-
-  async selectFirstCar(): Promise<void> {
-    await this.carCards.first().click();
+  /**
+   * Open a car card and wait for its branches page.
+   *
+   * The grid reflows while it settles, which keeps shifting the card and makes
+   * the click target unstable, so bring it into view and let the layout come to
+   * rest before clicking.
+   */
+  private async openCar(card: Locator): Promise<void> {
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await card.scrollIntoViewIfNeeded();
+    await this.page.waitForTimeout(1_500);
+    await card.click();
     await this.page.waitForURL(/car-branches/, { timeout: 30_000 });
   }
 
-  /** The search box above the results; MUI renders it without a placeholder. */
-  private get listSearchInput(): Locator {
-    return this.page.locator('input.MuiOutlinedInput-input').first();
+  async selectFirstCar(): Promise<void> {
+    await this.openCar(this.carCards.first());
   }
 
   /**
@@ -64,28 +78,30 @@ export class CarListPage extends BasePage {
     await this.listSearchInput.click();
     await this.listSearchInput.pressSequentially(term, { delay: 120 });
     await this.page.keyboard.press('Enter');
-    await expect(this.carCards.first()).toBeVisible({ timeout: 30_000 });
+
+    await this.expectResults();
     // The grid re-renders in place, so let the filtered set settle.
     await this.page.waitForTimeout(2_500);
   }
 
   /**
    * Pick the pinned vehicle out of the filtered results. Several listings share
-   * a model name, so the branch count is part of the identity. Fails rather
-   * than falling back to a different vehicle.
+   * a model name, so a discriminator is part of the identity — the branch count
+   * in a city search, the daily price under delivery, where every listing shows
+   * a single branch. Fails rather than falling back to a different vehicle.
    */
-  async selectPinnedCar(label: string, branchCount: string): Promise<void> {
-    const card = this.carCards.filter({ hasText: label }).filter({ hasText: branchCount });
+  async selectPinnedCar(label: string, discriminator: string): Promise<void> {
+    const card = this.carCards
+      .filter({ hasText: label })
+      .filter({ hasText: discriminator })
+      .first();
 
     await expect(
-      card.first(),
-      `pinned car "${label}" (${branchCount}) is not in these results — not falling back to another vehicle`,
+      card,
+      `pinned car "${label}" (${discriminator}) is not in these results — not falling back to another vehicle`,
     ).toBeVisible({ timeout: 30_000 });
 
-    await card.first().scrollIntoViewIfNeeded();
-    await this.page.waitForTimeout(1_500);
-    await card.first().click();
-    await this.page.waitForURL(/car-branches/, { timeout: 30_000 });
+    await this.openCar(card);
   }
 
   async selectCarByName(name: string | RegExp): Promise<void> {
@@ -98,13 +114,6 @@ export class CarListPage extends BasePage {
       await this.page.waitForTimeout(800);
     }
 
-    // The list reflows as lazy car images load, which keeps shifting the card and
-    // makes the click target unstable on slower browsers. Scroll it into view and
-    // let the layout settle before clicking.
-    await expect(card).toBeVisible({ timeout: 30_000 });
-    await card.scrollIntoViewIfNeeded();
-    await this.page.waitForTimeout(1_500);
-    await card.click();
-    await this.page.waitForURL(/car-branches/, { timeout: 30_000 });
+    await this.openCar(card);
   }
 }
