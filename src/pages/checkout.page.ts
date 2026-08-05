@@ -122,12 +122,6 @@ export class CheckoutPage extends BasePage {
     await this.threeDsSubmitButton.first().click();
   }
 
-  async expectPaymentSuccess(): Promise<void> {
-    // Control returns to Carwah with the booking id, then the success dialog.
-    await this.page.waitForURL(/carwah\.co.*bookingId=/i, { timeout: 60_000 });
-    await expect(this.paymentSuccessMessage).toBeVisible({ timeout: 30_000 });
-  }
-
   /**
    * Pays and, if the gateway callback fails, pays again for the same pending
    * booking — the recovery the failure dialog itself instructs the customer to
