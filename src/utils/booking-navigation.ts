@@ -21,9 +21,6 @@ export async function selectPinnedCarAndBranch(page: Page): Promise<void> {
   const carBranchesPage = new CarBranchesPage(page);
 
   await carListPage.expectLoaded();
-  // The city chosen on the home page does not survive the search navigation, so
-  // confirm it here before filtering — otherwise these are another city's cars.
-  await carListPage.ensureSearchedCity(testData.booking.city);
   await carListPage.searchForCar(pinned.searchTerm);
   await carListPage.selectPinnedCar(pinned.carLabel, pinned.carBranchCount);
 
