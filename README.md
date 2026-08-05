@@ -96,7 +96,7 @@ reuse the saved session:
 
 | Account | Used by | Session files |
 | --- | --- | --- |
-| `598598597` | everything authenticated | `playwright/.auth/user.json` + `session.json` |
+| `534271861` | everything authenticated | `playwright/.auth/user.json` + `session.json` |
 | `591594597` | `tests/booking/installment-booking.spec.ts` | `playwright/.auth/user-installment.json` + `session-installment.json` |
 
 Two accounts exist because Carwah allows only one pending reservation per
@@ -133,7 +133,7 @@ The HTTP URL is used because the current prewebsite calls its GraphQL passcode e
 Default test phone number:
 
 ```text
-598598597
+534271861
 ```
 
 The OTP is captured dynamically from the network response for the passcode request. The code extracts the numeric value from a GraphQL payload status like:
@@ -148,6 +148,6 @@ Override runtime values when needed:
 
 ```bash
 $env:BASE_URL="http://prewebsite.carwah.co/en"
-$env:CARWAH_PHONE_NUMBER="598598597"
+$env:CARWAH_PHONE_NUMBER="534271861"
 npm test
 ```

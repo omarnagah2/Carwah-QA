@@ -17,11 +17,34 @@ function decodeTokenExpiry(token: string): number | undefined {
   return typeof decoded.exp === 'number' ? decoded.exp : undefined;
 }
 
+/** Digits only, without the 966 country code the app stores numbers with. */
+function normalisePhone(value: string | number): string {
+  return String(value).replace(/\D/g, '').replace(/^966/, '');
+}
+
 /**
- * True when both halves of the account's session are on disk and its token is
- * still comfortably in date.
+ * The customer a stored session actually belongs to, as the app recorded it.
+ * Undefined when there is no readable session on disk.
  */
-export function hasValidStoredSession(account: AccountAuth): boolean {
+export function storedSessionPhone(account: AccountAuth): string | undefined {
+  try {
+    const session = JSON.parse(readFileSync(account.sessionFile, 'utf-8'));
+    const mobile = JSON.parse(session.authDataAction ?? '{}').user?.mobile;
+    return mobile === undefined ? undefined : normalisePhone(mobile);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * True when both halves of the account's session are on disk, its token is
+ * still comfortably in date, and it belongs to the customer we mean to be.
+ *
+ * The last check matters: without it, changing an account's number leaves the
+ * suite running as the previous customer until their token happens to expire,
+ * with nothing in the output to say so.
+ */
+export function hasValidStoredSession(account: AccountAuth, phoneNumber?: string): boolean {
   try {
     if (!existsSync(account.storageState) || !existsSync(account.sessionFile)) {
       return false;
@@ -32,6 +55,13 @@ export function hasValidStoredSession(account: AccountAuth): boolean {
 
     if (typeof authData.token !== 'string') {
       return false;
+    }
+
+    if (phoneNumber !== undefined) {
+      const stored = storedSessionPhone(account);
+      if (stored === undefined || stored !== normalisePhone(phoneNumber)) {
+        return false;
+      }
     }
 
     const expiry = decodeTokenExpiry(authData.token);
@@ -55,9 +85,17 @@ export async function authenticateAccount(
   phoneNumber: string,
   account: AccountAuth,
 ): Promise<void> {
-  if (!process.env.FORCE_LOGIN && hasValidStoredSession(account)) {
-    console.log(`Reusing stored session for ${phoneNumber} (set FORCE_LOGIN=1 to sign in again).`);
+  if (!process.env.FORCE_LOGIN && hasValidStoredSession(account, phoneNumber)) {
+    console.log(
+      `Reusing stored session — authenticated as ${storedSessionPhone(account)} ` +
+        `(set FORCE_LOGIN=1 to sign in again).`,
+    );
     return;
+  }
+
+  const previous = storedSessionPhone(account);
+  if (previous !== undefined && previous !== phoneNumber.replace(/\D/g, '')) {
+    console.log(`Stored session belongs to ${previous}; signing in as ${phoneNumber} instead.`);
   }
 
   await new LoginPage(page).loginWithPhoneNumber(phoneNumber);
@@ -67,4 +105,14 @@ export async function authenticateAccount(
 
   const sessionStorage = await page.evaluate(() => JSON.stringify(window.sessionStorage));
   writeFileSync(account.sessionFile, sessionStorage, 'utf-8');
+
+  // Say who the suite is actually running as, from the session just written.
+  const signedIn = storedSessionPhone(account);
+  console.log(`Signed in — authenticated as ${signedIn ?? 'unknown'} (configured ${phoneNumber}).`);
+
+  if (signedIn !== undefined && signedIn !== phoneNumber.replace(/\D/g, '')) {
+    throw new Error(
+      `Session was written for ${signedIn} but ${phoneNumber} was requested — refusing to run as the wrong customer.`,
+    );
+  }
 }
