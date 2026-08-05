@@ -34,6 +34,14 @@ export class CheckoutPage extends BasePage {
     return this.page.frameLocator('iframe[name="card.cvv"]');
   }
 
+  private get cardNumberInput(): Locator {
+    return this.cardNumberFrame.locator('input[name="card.number"]');
+  }
+
+  private get cvvInput(): Locator {
+    return this.cvvFrame.locator('input[name="card.cvv"]');
+  }
+
   private get widgetPayButton(): Locator {
     return this.page.locator('.wpwl-button-pay');
   }
@@ -76,26 +84,32 @@ export class CheckoutPage extends BasePage {
 
   async waitForWidget(): Promise<void> {
     await expect(this.cardHolderInput).toBeVisible({ timeout: 30_000 });
-    await expect(this.cardNumberFrame.locator('input[name="card.number"]')).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(this.cardNumberInput).toBeVisible({ timeout: 30_000 });
+  }
+
+  /**
+   * Focus a widget field and type into it a keystroke at a time.
+   *
+   * The card number and CVV are PCI iframes and the expiry is a masked input:
+   * they read key events, not value assignment, so `fill()` leaves them
+   * looking populated while the widget still considers them empty. The delay
+   * is per field because the masked expiry needs more time between characters
+   * than the iframes do.
+   */
+  private async typeInto(field: Locator, value: string, delay: number): Promise<void> {
+    await field.click();
+    await field.pressSequentially(value, { delay });
   }
 
   async payWithCard(card: TestCard): Promise<void> {
     await this.waitForWidget();
 
+    // The holder is an ordinary input, so it takes a value directly.
     await this.cardHolderInput.fill(card.holder);
 
-    await this.expiryInput.click();
-    await this.expiryInput.pressSequentially(card.expiry, { delay: 100 });
-
-    const number = this.cardNumberFrame.locator('input[name="card.number"]');
-    await number.click();
-    await number.pressSequentially(card.number, { delay: 60 });
-
-    const cvv = this.cvvFrame.locator('input[name="card.cvv"]');
-    await cvv.click();
-    await cvv.pressSequentially(card.cvv, { delay: 60 });
+    await this.typeInto(this.expiryInput, card.expiry, 100);
+    await this.typeInto(this.cardNumberInput, card.number, 60);
+    await this.typeInto(this.cvvInput, card.cvv, 60);
 
     await this.widgetPayButton.click();
   }
