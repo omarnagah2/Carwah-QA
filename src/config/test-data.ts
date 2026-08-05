@@ -1,6 +1,6 @@
 export const testData = {
   login: {
-    phoneNumber: process.env.CARWAH_PHONE_NUMBER ?? '598598597',
+    phoneNumber: process.env.CARWAH_PHONE_NUMBER ?? '534271861',
     // Second customer, used by the instalment booking test so it owns its own
     // pending-reservation slot and cannot collide with the normal booking.
     installmentPhoneNumber:

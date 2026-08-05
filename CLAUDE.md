@@ -39,7 +39,11 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - **Sessions are reused across runs** while the token is valid, so a normal run
   never touches the flaky OTP flow. `login.spec.ts` still exercises real login.
 - **Two accounts**, because Carwah allows one pending reservation per customer:
-  `598598597` (primary) and `591594597` (instalment test).
+  `534271861` (primary) and `591594597` (instalment test).
+- **`hasValidStoredSession` checks only that the token is in date, not whose it
+  is.** After changing an account's number the suite keeps running as the old
+  customer until that token expires — delete `playwright/.auth/` or run
+  `FORCE_LOGIN=1`.
 
 ## Booking rules
 
