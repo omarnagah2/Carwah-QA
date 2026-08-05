@@ -16,6 +16,26 @@ export const testData = {
     // A car whose branch does not require a delivery location, so the pay action
     // can be reached without the (fragile) map picker.
     car: process.env.CARWAH_BOOKING_CAR ?? 'رينو سيمبول',
+    /**
+     * The one vehicle every booking type except rent-to-own books, picked out of
+     * the real results rather than navigated to, so the journey still covers
+     * search and selection. Rent-to-own has its own inventory and is untouched.
+     */
+    pinned: {
+      // Typed into the car-list search box. It needs Enter to apply.
+      searchTerm: process.env.CARWAH_CAR_SEARCH_TERM ?? 'سيمبول',
+      // Three cars match "رينو سيمبول"; the branch count is what separates the
+      // ﷼110 three-branch listing from the 2022 and the ﷼61 one-branch ones.
+      carLabel: process.env.CARWAH_PINNED_CAR ?? 'رينو سيمبول 2024',
+      carBranchCount: process.env.CARWAH_PINNED_CAR_BRANCHES ?? '3 فرع',
+      // Its branches page lists three السنوسي allies; only one is تأكيد فوري.
+      branchLabel: process.env.CARWAH_PINNED_BRANCH ?? 'السنوسي',
+      branchConfirmation: process.env.CARWAH_PINNED_BRANCH_CONFIRMATION ?? 'تأكيد فوري',
+      // What that selection resolves to, asserted so a silent inventory change
+      // fails loudly instead of quietly booking a different car.
+      carBranchesId: process.env.CARWAH_CAR_BRANCHES_ID ?? '16634',
+      carDetailsId: process.env.CARWAH_CAR_DETAILS_ID ?? '17089',
+    },
   },
   rentToOwn: {
     // A rent-to-own car whose branch does not demand a delivery location, so

@@ -2,8 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from '../../src/fixtures/authenticated-test';
 import { testData } from '../../src/config/test-data';
 import { HomePage } from '../../src/pages/home.page';
-import { CarListPage } from '../../src/pages/car-list.page';
-import { CarBranchesPage } from '../../src/pages/car-branches.page';
+import { selectPinnedCarAndBranch } from '../../src/utils/booking-navigation';
 import { CarDetailsPage } from '../../src/pages/car-details.page';
 import { CheckoutPage } from '../../src/pages/checkout.page';
 import { MyRentalsPage } from '../../src/pages/my-rentals.page';
@@ -27,8 +26,6 @@ test.describe('Delivery booking', () => {
 
   test('delivery booking', async ({ page }) => {
     const homePage = new HomePage(page);
-    const carListPage = new CarListPage(page);
-    const carBranchesPage = new CarBranchesPage(page);
     const carDetailsPage = new CarDetailsPage(page);
     const checkoutPage = new CheckoutPage(page);
 
@@ -37,12 +34,9 @@ test.describe('Delivery booking', () => {
     await homePage.searchWithDelivery();
     await expect(page).toHaveURL(/car-search/);
 
-    // 5-6. The results are the usual listing, so pick a car and a branch.
-    await carListPage.expectLoaded();
-    await carListPage.selectCarByName(testData.booking.car);
-    await carBranchesPage.expectLoaded();
-    await carBranchesPage.selectFirstBranch();
-    await expect(page).toHaveURL(/car-details/);
+    // 5-6. The results are the usual listing, so take the same pinned car and
+    //      branch every other booking type uses.
+    await selectPinnedCarAndBranch(page);
 
     // 7. What makes this a delivery booking: the details page carries the
     //    pickup location chosen during the search.
