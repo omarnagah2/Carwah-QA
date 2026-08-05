@@ -7,7 +7,7 @@ Playwright + TypeScript, Page Object Model. 42 tests.
 
 ```
 tests/
-├── auth.setup.ts / auth-installment.setup.ts   # sign-in, runs once per account
+├── auth.setup.ts          # sign-in, runs once per run; all specs share it
 ├── auth/      login, logout
 ├── home/      coupon, vehicle-type-search, extra-service-search, partner-tag
 └── booking/   booking (normal + pending alert), installment-booking,
@@ -38,8 +38,16 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
   `retries: 2` and the environment-classifier reporter exist for this.
 - **Sessions are reused across runs** while the token is valid, so a normal run
   never touches the flaky OTP flow. `login.spec.ts` still exercises real login.
-- **Two accounts**, because Carwah allows one pending reservation per customer:
-  `534271861` (primary) and `591594597` (instalment test).
+- **One customer, one sign-in per run**: `534271861`, in the single `setup`
+  project; every spec reuses `playwright/.auth/user.json` + `session.json`.
+  `installmentAccount` is now an alias of `primaryAccount`, not a second
+  account. Carwah's one-pending-reservation-per-customer rule therefore applies
+  across the whole suite — booking specs must not overlap, which the default
+  single worker ensures. Two accounts used to exist for exactly that reason.
+  `login.spec.ts` still signs in for real, since that is what it tests.
+- **`rent-to-own.spec.ts`'s "other customer" check no longer proves anything**:
+  it opens `installmentAccount` to assert a booked car is hidden from *other*
+  customers, and that is now the same customer viewing their own booking.
 - **A stored session is only reused when it belongs to the configured number.**
   `hasValidStoredSession` compares the session's `user.mobile` (which the app
   stores as `966…`) against `testData.login.phoneNumber`, so changing an account

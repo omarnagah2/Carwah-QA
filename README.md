@@ -90,17 +90,21 @@ degraded/slow, treat concurrent failures as environment-related.
 
 ## Authentication
 
-Signing in happens **once per account per run**, in the `setup` project — never
-per test. Every browser project depends on that one setup, and the specs just
-reuse the saved session:
+Signing in happens **once per run**, in the `setup` project — never per test
+file and never per test case. Every browser project depends on that one setup,
+and every spec reuses the session it writes:
 
 | Account | Used by | Session files |
 | --- | --- | --- |
 | `534271861` | everything authenticated | `playwright/.auth/user.json` + `session.json` |
-| `591594597` | `tests/booking/installment-booking.spec.ts` | `playwright/.auth/user-installment.json` + `session-installment.json` |
 
-Two accounts exist because Carwah allows only one pending reservation per
-customer, so the booking tests would otherwise cancel each other's bookings.
+There used to be a second account, so the instalment booking owned its own
+pending-reservation slot. With one customer, Carwah's one-pending-reservation
+rule applies across the whole suite, so booking specs must not overlap — the
+default single worker is what keeps them sequential.
+
+`tests/auth/login.spec.ts` still performs a real sign-in, because logging in is
+what it tests. It does not create or touch the shared session.
 
 A saved session is **reused across runs** while its token is still in date
 (checked with an hour to spare), so a normal run does not depend on the OTP flow

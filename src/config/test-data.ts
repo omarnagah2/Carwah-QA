@@ -1,10 +1,10 @@
 export const testData = {
   login: {
+    /**
+     * The one customer the whole suite runs as. Signing in happens once per run
+     * in the `setup` project; every spec reuses that session.
+     */
     phoneNumber: process.env.CARWAH_PHONE_NUMBER ?? '534271861',
-    // Second customer, used by the instalment booking test so it owns its own
-    // pending-reservation slot and cannot collide with the normal booking.
-    installmentPhoneNumber:
-      process.env.CARWAH_INSTALLMENT_PHONE_NUMBER ?? '591594597',
   },
   coupons: {
     invalidHomePageCouponCode: process.env.CARWAH_HOME_PAGE_INVALID_COUPON_CODE ?? 'hahaha',
