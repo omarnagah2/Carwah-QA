@@ -35,7 +35,7 @@ export class CarBranchesPage extends BasePage {
    * class is a styled-components hash that changes with every build, which is
    * why it is found by what it contains rather than by name.
    */
-  private branchBlockAtDailyPrice(dailyPrice: string): Locator {
+  private branchBlockAtPrice(price: string): Locator {
     return this.page
       .locator('div')
       .filter({ has: this.branchCards })
@@ -43,23 +43,27 @@ export class CarBranchesPage extends BasePage {
         has: this.page
           .locator('.price-label')
           // Guard the leading digit so "200" cannot match "1200".
-          .filter({ hasText: new RegExp(`(?:^|[^\\d])${dailyPrice}\\s*/`) }),
+          .filter({ hasText: new RegExp(`(?:^|[^\\d])${price}\\s*/`) }),
       })
       .last();
   }
 
   /**
-   * Pick the branch by its daily price. Every ally for this car is at the same
+   * Pick the branch by its price. Every ally for this car is at the same
    * location, and the confirmation type is a branch feature that can be turned
    * on and off, so neither identifies a branch — the price does. Fails rather
    * than falling back to another branch.
+   *
+   * The price is per day on a daily search and per month on a monthly one, and
+   * the same ally carries a different figure in each, so the caller supplies
+   * whichever applies to the search it made.
    */
-  async selectBranchByDailyPrice(dailyPrice: string): Promise<void> {
-    const block = this.branchBlockAtDailyPrice(dailyPrice);
+  async selectBranchByPrice(price: string): Promise<void> {
+    const block = this.branchBlockAtPrice(price);
 
     await expect(
       block,
-      `no branch at ${dailyPrice}/day is offered for this car — not falling back to another branch`,
+      `no branch priced ${price} is offered for this car — not falling back to another branch`,
     ).toBeVisible({ timeout: 30_000 });
 
     await this.openBranch(block.locator('.inner-card').first());

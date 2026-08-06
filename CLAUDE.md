@@ -91,12 +91,26 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - Cars/branches matter: the Renault (`رينو سيمبول`) branch pays without a delivery
   location; the Range Rover branch demands the fragile map picker. Pinned in
   test-data.
-- **The branch is identified by its daily price**, not its location or
+- **An instalment booking is a monthly search**, not a daily one routed through
+  the "العروض و الباقات الشهرية" card. City → the `شهري` tab → the `فترة الأيجار`
+  slider → search. The slider is a MUI slider driven with the **arrow keys**, not
+  dragged: a drag lands wherever the pointer geometry falls, the keyboard steps
+  one month and the value can be read back from `aria-valuenow`. It opens on 12,
+  and `testData.booking.months` is 3 so the test only passes if it really moved.
+  The monthly tab has one pickup date (today) and no return date.
+- **The car-details packages reflect the period chosen on the home page**, and
+  the selected tile is marked *only* by its wrapper's border colour
+  (`rgb(122, 179, 197)`) — the six tiles share a class and carry no
+  `aria-selected` or checked input. The tiers are fixed (one week, one month, 3,
+  6, 9, 12), so a period off those tiers selects nothing.
+- **The branch is identified by its price**, not its location or
   confirmation type. All three allies for the pinned car sit at the same
   location, and `تأكيد فوري` is a feature a branch can have switched on or off —
-  neither identifies anything. The pinned one is at 200/day, the others at 110.
-  The block holding an ally is found by what it contains (`.inner-card` plus its
-  `.price-label`), because its own class is a styled-components hash.
+  neither identifies anything. **The figure depends on the search**: the pinned
+  ally is 200/day against the others' 110, and 5970/month against their 2550, so
+  the caller passes whichever applies. The block holding an ally is found by what
+  it contains (`.inner-card` plus its `.price-label`), because its own class is a
+  styled-components hash.
 - The car-list search box matches Arabic and Latin alike, by design: `symbol`
   and `سيمبول` return the same results, so the term is not a language choice.
 - **A booking is cancelled from its own details page**, never from a menu on the
@@ -136,9 +150,9 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
    Tabby's `expectSuccess` stays URL-based until the https question is answered.
 2. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
-3. `installment`, `tabby`, `delivery` and `rent-to-own` still release their
-   booking through the `afterEach` sweep only. Whichever of them ends on a
-   success dialog could follow the same route the card specs now take.
+3. `tabby`, `delivery` and `rent-to-own` still release their booking through the
+   `afterEach` sweep only, and their journeys have not been reviewed against the
+   real customer path the way `booking`, `mada` and `installment` have.
 
 ## Working style that worked here
 

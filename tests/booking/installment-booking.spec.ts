@@ -6,9 +6,10 @@ import { CheckoutPage } from '../../src/pages/checkout.page';
 import { MyRentalsPage } from '../../src/pages/my-rentals.page';
 import { goToRentalPackageCarDetails } from '../../src/utils/booking-navigation';
 
-// Its own customer, so the pending reservation this test creates (and the
-// cancel hooks that clean it up) cannot collide with the normal booking test.
-// That is what lets this file run in parallel with booking.spec.ts.
+// `installmentAccount` is an alias of `primaryAccount`, not a second customer.
+// This booking therefore shares the one-pending-reservation-per-customer rule
+// with every other booking spec, so this file must not run alongside them —
+// which the suite's single worker is what ensures.
 const test = createAuthenticatedTest(installmentAccount.sessionFile);
 
 test.describe('Installment booking', () => {
@@ -38,6 +39,10 @@ test.describe('Installment booking', () => {
 
     await goToRentalPackageCarDetails(page);
 
+    // The period chosen on the home page is carried through as the selected
+    // rental package, which is what ties the monthly search to this booking.
+    await carDetailsPage.expectRentalPackageSelected(testData.booking.monthsLabel);
+
     await carDetailsPage.proceedToInstallments();
     await carDetailsPage.expectInstallmentsDialog();
 
@@ -54,5 +59,10 @@ test.describe('Installment booking', () => {
       expiry: testData.payment.expiry,
       cvv: testData.payment.cvv,
     });
+
+    // Release the booking the way a customer would: through the success dialog
+    // into the booking's own page. `afterEach` remains the safety net.
+    await carDetailsPage.openRentalDetailsFromSuccess();
+    await carDetailsPage.cancelReservation();
   });
 });

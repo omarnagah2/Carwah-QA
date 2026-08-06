@@ -27,6 +27,18 @@ export const testData = {
       days: Number(process.env.CARWAH_BOOKING_DURATION_DAYS ?? 3),
     },
     /**
+     * The monthly (instalment) booking's rental period, set on the home page's
+     * period slider. The car-details packages are fixed tiers — one week, one
+     * month, 3, 6, 9 and 12 months — so this has to be one of them for a
+     * package to come back selected. The slider opens on 12, so 3 is chosen
+     * deliberately: it only matches if the slider really moved.
+     */
+    months: Number(process.env.CARWAH_BOOKING_MONTHS ?? 3),
+    /** How that period is labelled on the car-details package tile. */
+    get monthsLabel(): string {
+      return this.months === 1 ? 'شهر واحد' : `${this.months} أشهر`;
+    },
+    /**
      * The one vehicle every booking type except rent-to-own books, picked out of
      * the real results rather than navigated to, so the journey still covers
      * search and selection. Rent-to-own has its own inventory and is untouched.
@@ -51,6 +63,8 @@ export const testData = {
       // ally shares the location, and the confirmation type is a branch feature
       // that can be switched on and off.
       branchDailyPrice: process.env.CARWAH_PINNED_BRANCH_DAILY_PRICE ?? '200',
+      // The same ally, priced per month when the search was a monthly one.
+      branchMonthlyPrice: process.env.CARWAH_PINNED_BRANCH_MONTHLY_PRICE ?? '5970',
       // What that selection resolves to, asserted so a silent inventory change
       // fails loudly instead of quietly booking a different car.
       carBranchesId: process.env.CARWAH_CAR_BRANCHES_ID ?? '16634',

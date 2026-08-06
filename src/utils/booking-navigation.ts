@@ -18,10 +18,16 @@ const pinned = testData.booking.pinned;
  */
 export async function selectPinnedCarAndBranch(
   page: Page,
-  options: { discriminator?: string; carBranchesId?: string; carDetailsId?: string } = {},
+  options: {
+    discriminator?: string;
+    branchPrice?: string;
+    carBranchesId?: string;
+    carDetailsId?: string;
+  } = {},
 ): Promise<void> {
   const {
     discriminator = pinned.carBranchCount,
+    branchPrice = pinned.branchDailyPrice,
     carBranchesId = pinned.carBranchesId,
     carDetailsId = pinned.carDetailsId,
   } = options;
@@ -40,7 +46,7 @@ export async function selectPinnedCarAndBranch(
   }
 
   await carBranchesPage.expectLoaded();
-  await carBranchesPage.selectBranchByDailyPrice(pinned.branchDailyPrice);
+  await carBranchesPage.selectBranchByPrice(branchPrice);
 
   if (carDetailsId) {
     await expect(page, 'pinned branch resolved to a different car').toHaveURL(
@@ -65,20 +71,19 @@ export async function goToDeliveryOptionalCarDetails(page: Page): Promise<void> 
 }
 
 /**
- * Same car, reached through "Offers and rental packages" so the booking is a
- * monthly rental package and therefore payable in instalments.
+ * The same car, searched for by the month rather than by the day, which is what
+ * makes the booking a rental package and therefore payable in instalments.
+ *
+ * The monthly search prices allies per month, so the pinned branch is taken by
+ * its monthly figure — the daily one does not appear on this listing at all.
  */
 export async function goToRentalPackageCarDetails(page: Page): Promise<void> {
   const homePage = new HomePage(page);
 
   await homePage.openArabicHomePage();
   await homePage.selectCity(testData.booking.city);
-  await homePage.selectRentalDuration(testData.booking.duration);
+  await homePage.selectMonthlyRental(testData.booking.months);
   await homePage.submitSearch();
-  // Back to the home page through the header link: a full reload would re-seed
-  // the stored session and lose the city that was just picked.
-  await homePage.returnToHomeViaNav();
-  await homePage.openOffersAndRentalPackages();
 
-  await selectPinnedCarAndBranch(page);
+  await selectPinnedCarAndBranch(page, { branchPrice: pinned.branchMonthlyPrice });
 }

@@ -82,6 +82,15 @@ export class HomePage extends BasePage {
     return this.page.locator('.tab-item span', { hasText: 'توصيل' });
   }
 
+  private get monthlyTab(): Locator {
+    return this.page.locator('.tab-item span', { hasText: 'شهري' });
+  }
+
+  /** The "فترة الأيجار" period slider, shown only on the monthly tab. */
+  private get rentalPeriodSlider(): Locator {
+    return this.page.locator('[role="slider"]');
+  }
+
   private get editPickupLocationLink(): Locator {
     return this.page.getByText('تعديل');
   }
@@ -190,16 +199,6 @@ export class HomePage extends BasePage {
     throw new Error('Delivery search did not open the car list.');
   }
 
-  private get homeNavLink(): Locator {
-    return this.page.getByRole('link', { name: 'الرئيسية' });
-  }
-
-  private get offersAndRentalPackagesCard(): Locator {
-    // "العروض و الباقات الشهرية" (Offers and monthly rental packages) in the
-    // "Selected for you" strip; the label is split across two elements.
-    return this.page.getByText('و الباقات الشهرية');
-  }
-
   private vehicleTypeCard(type: string): Locator {
     // Cards in the "ابحث حسب السيارة" (search by vehicle type) strip are labelled
     // with the category name only, so an exact text match picks them out. The
@@ -286,22 +285,6 @@ export class HomePage extends BasePage {
     await this.page.goto('/ar', { waitUntil: 'domcontentloaded' });
   }
 
-  /**
-   * Returns to the home page through the header link rather than a fresh
-   * navigation. The authenticated fixture re-seeds sessionStorage on every full
-   * page load, which would reset the search back to the stored city, so the
-   * client-side route is what keeps a just-selected city.
-   */
-  async returnToHomeViaNav(): Promise<void> {
-    await this.homeNavLink.first().click();
-    await expect(this.offersAndRentalPackagesCard.first()).toBeVisible({ timeout: 30_000 });
-  }
-
-  async openOffersAndRentalPackages(): Promise<void> {
-    await this.offersAndRentalPackagesCard.first().click();
-    await this.page.waitForURL(/car-search/, { timeout: 30_000 });
-  }
-
   /** Take a city from the pickup-location dropdown. Does not search. */
   async selectCity(city: string): Promise<void> {
     await expect(this.pickupCityInput).toBeVisible({ timeout: 30_000 });
@@ -357,6 +340,41 @@ export class HomePage extends BasePage {
     // confirms the range landed where it was aimed.
     await expect(this.pickupDateInput).toHaveValue(new RegExp(`^${start.getDate()}\\s`));
     await expect(this.dropoffDateInput).toHaveValue(new RegExp(`^${end.getDate()}\\s`));
+  }
+
+  /**
+   * Switch to the monthly tab and set how many months the rental runs for.
+   *
+   * The period is driven with the arrow keys rather than dragged. A drag lands
+   * on whatever month the pointer geometry happens to reach; the keyboard steps
+   * exactly one month at a time and the value can be read back and asserted.
+   *
+   * The monthly tab carries a single pickup date, pre-filled with today, and no
+   * return date — the period replaces it, so there is nothing to pick there.
+   */
+  async selectMonthlyRental(months: number): Promise<void> {
+    await expect(this.monthlyTab.first()).toBeVisible({ timeout: 30_000 });
+    await this.monthlyTab.first().click();
+
+    const slider = this.rentalPeriodSlider.first();
+    await expect(slider).toBeVisible({ timeout: 20_000 });
+    await slider.focus();
+
+    // The slider opens on 12 months. Step towards the wanted value, re-reading
+    // each time so a press that does not register simply gets repeated.
+    for (let guard = 0; guard < 40; guard += 1) {
+      const now = Number(await slider.getAttribute('aria-valuenow'));
+      if (now === months) {
+        break;
+      }
+      await this.page.keyboard.press(now < months ? 'ArrowRight' : 'ArrowLeft');
+      await this.page.waitForTimeout(80);
+    }
+
+    await expect(slider, `the rental period did not reach ${months} months`).toHaveAttribute(
+      'aria-valuenow',
+      String(months),
+    );
   }
 
   /** Run the search and wait for the results page. */

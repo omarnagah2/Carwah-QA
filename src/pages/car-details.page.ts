@@ -47,6 +47,35 @@ export class CarDetailsPage extends BasePage {
       .filter({ hasText: /ستكون الدفعات الشهرية/ });
   }
 
+  /**
+   * A rental-package tile in the "الباقات التأجيرية" strip, found by its period
+   * label — the tiles carry no id, and their class is shared by all six.
+   */
+  private rentalPackageTile(label: string): Locator {
+    return this.page
+      .locator('div.cursor-pointer')
+      .filter({ has: this.page.locator(`h6:text-is("${label}")`) });
+  }
+
+  /**
+   * The package matching the period chosen on the home page comes back
+   * selected, which is the link between the two pages.
+   *
+   * Selection shows up only as the border colour of the tile's wrapper: the
+   * tiles are otherwise identical, with no class, no `aria-selected` and no
+   * checked input to read.
+   */
+  async expectRentalPackageSelected(label: string): Promise<void> {
+    const tile = this.rentalPackageTile(label).first();
+    await expect(tile, `no "${label}" rental package is offered for this car`).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(
+      tile.locator('xpath=..'),
+      `"${label}" is not the selected rental package`,
+    ).toHaveCSS('border-color', 'rgb(122, 179, 197)');
+  }
+
   async proceedToInstallments(): Promise<void> {
     await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const button = this.proceedButton.first();
