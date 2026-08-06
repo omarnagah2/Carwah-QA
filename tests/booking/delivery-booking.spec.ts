@@ -55,5 +55,10 @@ test.describe('Delivery booking', () => {
       expiry: testData.payment.expiry,
       cvv: testData.payment.cvv,
     });
+
+    // Release the booking the way a customer would: through the success dialog
+    // into the booking's own page. `afterEach` remains the safety net.
+    await carDetailsPage.openRentalDetailsFromSuccess();
+    await carDetailsPage.cancelReservation();
   });
 });

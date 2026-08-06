@@ -91,8 +91,12 @@ export class HomePage extends BasePage {
     return this.page.locator('[role="slider"]');
   }
 
-  private get editPickupLocationLink(): Locator {
-    return this.page.getByText('تعديل');
+  /**
+   * The delivery pickup field. It is the whole field that opens the picker, not
+   * just the "تعديل" link beside it, which is what a customer clicks.
+   */
+  private get deliveryLocationField(): Locator {
+    return this.page.locator('.delivery-input');
   }
 
   private get searchButton(): Locator {
@@ -107,27 +111,47 @@ export class HomePage extends BasePage {
     return this.page.getByText(/خارج نطاق الخدمة/);
   }
 
+  private get confirmLocationButton(): Locator {
+    return this.locationDialog.getByRole('button', { name: 'تأكيد' });
+  }
+
+  private get searchDifferentLocationButton(): Locator {
+    return this.page.getByRole('button', { name: /بحث في موقع مختلف/ });
+  }
+
   /**
-   * Delivery bookings need a pickup location before searching. The picker
-   * reverse-geocodes wherever the pin lands, and not every point is inside the
-   * delivery service area — the app rejects those with "your location is
-   * outside the service area". So try points around the map until one is
-   * accepted, which is what choosing a *valid* location amounts to here.
+   * Choose where the car is delivered.
+   *
+   * The picker opens with nothing chosen — that is its normal state, and the
+   * confirm button stays disabled until a location is taken, so the test asserts
+   * that rather than expecting an address to be waiting there.
+   *
+   * The pin goes on the map's centre. The map is centred on the city that was
+   * just chosen, and a city's own centre is inside the delivery area, whereas
+   * points further out are not; a second try nudges slightly off centre in case
+   * the first pin reverse-geocodes to somewhere unsupported. If that is refused
+   * too the booking cannot proceed, and this says so rather than hunting around
+   * the map for anywhere that happens to be accepted.
    */
   async setDeliveryPickupLocation(): Promise<void> {
-    // Offsets from the map centre, as a fraction of its size.
-    const candidatePoints = [
+    // Offsets from the map centre, as a fraction of its size — both deliberately
+    // small, so the pin stays in the middle of the city.
+    const nearCentre = [
       [0, 0],
-      [0.12, 0.08],
-      [-0.12, -0.08],
-      [0.2, -0.12],
-      [-0.2, 0.12],
+      [0.05, 0.04],
     ];
 
-    for (const [dx, dy] of candidatePoints) {
+    for (const [index, [dx, dy]] of nearCentre.entries()) {
       if (!(await this.locationDialog.isVisible().catch(() => false))) {
-        await this.editPickupLocationLink.first().click();
+        await this.deliveryLocationField.first().click();
         await expect(this.locationDialog).toBeVisible({ timeout: 20_000 });
+      }
+
+      if (index === 0) {
+        await expect(
+          this.confirmLocationButton,
+          'the picker should open with no pickup location chosen',
+        ).toBeDisabled();
       }
 
       const map = this.locationDialog.locator('.gm-style').first();
@@ -144,29 +168,29 @@ export class HomePage extends BasePage {
         box.y + box.height * (0.5 + dy),
       );
 
-      const confirm = this.locationDialog.getByRole('button', { name: 'تأكيد' });
-      await expect(confirm).toBeEnabled({ timeout: 20_000 });
-      await confirm.click();
+      // The button waking up is the app confirming it resolved an address.
+      await expect(this.confirmLocationButton).toBeEnabled({ timeout: 20_000 });
+      await this.confirmLocationButton.click();
       await this.page.waitForTimeout(2_000);
 
       if (!(await this.outOfServiceAreaMessage.isVisible().catch(() => false))) {
+        // Wait for the picker to actually go: while it is still mounted it
+        // swallows the click on the search button behind it.
+        await expect(this.locationDialog).toBeHidden({ timeout: 20_000 });
         return;
       }
 
-      // Outside the delivery area: dismiss and try a different point.
-      await this.page
-        .getByRole('button', { name: /بحث في موقع مختلف/ })
-        .click()
-        .catch(() => undefined);
+      await this.searchDifferentLocationButton.click().catch(() => undefined);
       await this.page.waitForTimeout(1_500);
     }
 
-    throw new Error('Could not pick a delivery location inside the service area.');
+    throw new Error(
+      'The delivery pickup location was refused as outside the service area, at the centre of the chosen city and just off it.',
+    );
   }
 
   /**
-   * Switch to the delivery tab, choose the city, pick a pickup location, and
-   * search.
+   * City, delivery tab, pickup location, search.
    *
    * The city comes first on purpose: it is what re-centres the location
    * picker's map. Without it the map opens on the app's default area (Riyadh)
@@ -174,29 +198,13 @@ export class HomePage extends BasePage {
    * browser's geolocation says — so the search returns another city's cars.
    */
   async searchWithDelivery(city: string): Promise<void> {
-    await expect(this.deliveryTab.first()).toBeVisible({ timeout: 30_000 });
-    await this.deliveryTab.first().click();
-    await this.page.waitForTimeout(1_500);
-
     await this.selectCity(city);
 
+    await expect(this.deliveryTab.first()).toBeVisible({ timeout: 30_000 });
+    await this.deliveryTab.first().click();
+
     await this.setDeliveryPickupLocation();
-
-    // The closed dialog stays mounted for a while and swallows the click, so
-    // retry until the search actually navigates.
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      await this.page.waitForTimeout(1_500);
-      await this.searchButton.first().click({ timeout: 10_000 }).catch(() => undefined);
-      const navigated = await this.page
-        .waitForURL(/car-search/, { timeout: 10_000 })
-        .then(() => true)
-        .catch(() => false);
-      if (navigated) {
-        return;
-      }
-    }
-
-    throw new Error('Delivery search did not open the car list.');
+    await this.submitSearch();
   }
 
   private vehicleTypeCard(type: string): Locator {

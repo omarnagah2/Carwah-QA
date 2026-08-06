@@ -113,6 +113,17 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
   styled-components hash.
 - The car-list search box matches Arabic and Latin alike, by design: `symbol`
   and `سيمبول` return the same results, so the term is not a language choice.
+- **A delivery booking picks its pickup point at the map's centre**, not wherever
+  a probe lands. The picker opens with nothing chosen — that is its normal state,
+  and `تأكيد` stays disabled until a location is taken, which is the signal that
+  an address resolved. The map is centred on the city just chosen and a city
+  centre is inside the delivery area; only one retry, slightly off centre, then
+  the test fails saying so. Hunting around the map finds points *outside* the
+  service area, which is not a customer journey. The picker opens from the field
+  itself, and the search button behind it swallows clicks until the dialog is
+  really hidden — waiting for that is what removed a four-attempt click retry.
+  Delivery prices the pinned car at 200/day and lists a single ally, also at 200,
+  on `car-branches/17089`.
 - **A booking is cancelled from its own details page**, never from a menu on the
   rentals list. `car-details?...&bookingId=…` carries a cancel action that opens
   the reasons dialog; the confirm button shares its label with the link that
@@ -165,11 +176,10 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
    on investigation.
 2. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
-3. `delivery` and `rent-to-own` have not been reviewed against the real customer
-   path the way `booking`, `mada`, `installment` and `tabby` have, and still
-   release their booking through the `afterEach` sweep only. `tabby` keeps the
-   sweep too, but for a reason: the mixed-content block above leaves it no
-   success dialog to cancel from.
+3. `rent-to-own` is the last route not reviewed against the real customer path,
+   and still releases its booking through the `afterEach` sweep only. `tabby`
+   keeps the sweep too, but for a reason: the mixed-content block above leaves it
+   no success dialog to cancel from.
 
 ## Working style that worked here
 
