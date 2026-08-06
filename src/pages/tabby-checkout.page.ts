@@ -46,6 +46,19 @@ export class TabbyCheckoutPage extends BasePage {
     await this.continueButton.click();
   }
 
+  /**
+   * Tabby hands back to **https** while the GraphQL API is http, so Chromium
+   * blocks every call on the returned page as mixed content and the success
+   * dialog never gets its data. The booking is made — the URL carries its id —
+   * but the page cannot render it, and that is a product issue rather than
+   * something for this test to route around.
+   *
+   * So the outcome is read from the URL. Re-opening the same address over http
+   * does render the dialog, but rewriting the scheme here would assert an
+   * experience no customer has and bury the defect; the cancel journey the card
+   * specs use is unavailable for the same reason, which is why this spec still
+   * releases its booking through the `afterEach` sweep.
+   */
   async expectReturnedToCarwahWithSuccess(): Promise<void> {
     expect(await this.waitForUrl(/carwah\.co/i, 90), 'should return to Carwah').toBe(true);
     await expect(this.page).toHaveURL(/status=success/);

@@ -127,16 +127,29 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - Tabby's OTP is a **controlled input**: `fill()` sets a value without the
   keystrokes its auto-submit listens for. Use `pressSequentially`. There is **no
   Continue** to press on the OTP page, and never `force`-click a plan tile.
-- Tabby returns to **https** while the suite runs on http, so sessionStorage (and
-  the auth token) is lost and the success dialog does not render — the test
-  asserts `status=success` + `bookingId` in the URL instead. Unresolved: the
-  return URL is built server-side; the client sends no return URL at all.
+- Tabby returns to **https** while the API stays on http, so the success dialog
+  does not render and the test asserts `status=success` + `bookingId` in the URL
+  instead. The session is **not** the problem — it survives the hand-back
+  (`stillSignedIn`, and `authentication` is still in `persist:root`). What fails
+  is every GraphQL call: Chromium blocks them as
+  `mixed-content http://prebeta.carwah.co:2052/graphql` (8 of 8 on the returned
+  page), so the dialog never gets its data. `--allow-running-insecure-content`
+  does not cover fetch/XHR. Re-opening the very same URL over http renders the
+  dialog, the rental-details action and the cancel link — which is why this is a
+  product issue and not ours to route around. **Do not rewrite the return URL to
+  http in the test**: it would assert an experience no customer has, and hide it.
 - HyperPay card payments occasionally fail the gateway callback;
   `CheckoutPage.payAndConfirm` retries the payment the way the app tells the
   customer to.
 
 ## Known product issues (report, don't work around)
 
+- **Tabby's return URL is https while the GraphQL API is http.** Every call on
+  the returned page is blocked as mixed content, so a customer coming back from
+  Tabby lands on a booking page that renders no confirmation, no rental-details
+  action and no cancel link — the booking exists, but the page cannot show it.
+  Either the return URL should be http on pre-prod, or the API should be served
+  over https. Evidence is in the Payment gotchas entry above.
 - `renttoown.status.Success` — untranslated key shown to users on rent-to-own.
 - Vehicle-type cards never render on WebKit and are not clickable on Firefox.
 - The `extraServices` API response does not match the cards the home carousel shows.
@@ -147,12 +160,16 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
    per-method specs). Introduce a `PaymentMethod` strategy (`select` / `complete` /
    `expectSuccess`) with Visa, Mada and Tabby implementations; keep one spec per
    booking type on the default card, plus one spec parameterised across methods.
-   Tabby's `expectSuccess` stays URL-based until the https question is answered.
+   Tabby's `expectSuccess` stays URL-based until the product returns to http (or
+   the API moves to https) — the cause is known, so this is waiting on a fix, not
+   on investigation.
 2. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
-3. `tabby`, `delivery` and `rent-to-own` still release their booking through the
-   `afterEach` sweep only, and their journeys have not been reviewed against the
-   real customer path the way `booking`, `mada` and `installment` have.
+3. `delivery` and `rent-to-own` have not been reviewed against the real customer
+   path the way `booking`, `mada`, `installment` and `tabby` have, and still
+   release their booking through the `afterEach` sweep only. `tabby` keeps the
+   sweep too, but for a reason: the mixed-content block above leaves it no
+   success dialog to cancel from.
 
 ## Working style that worked here
 
