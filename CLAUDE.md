@@ -176,10 +176,11 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
    on investigation.
 2. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
-3. `rent-to-own` is the last route not reviewed against the real customer path,
-   and still releases its booking through the `afterEach` sweep only. `tabby`
-   keeps the sweep too, but for a reason: the mixed-content block above leaves it
-   no success dialog to cancel from.
+3. **`rent-to-own` is deliberately not being reviewed**: the feature is due to be
+   redesigned outright, so reworking its journey now would be thrown away. Leave
+   it on the `afterEach` sweep, and review it against the real customer path once
+   the redesign lands. `tabby` keeps the sweep too, but for a different reason:
+   the mixed-content block above leaves it no success dialog to cancel from.
 
 ## Working style that worked here
 
