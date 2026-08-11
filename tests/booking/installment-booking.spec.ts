@@ -2,9 +2,9 @@ import { createAuthenticatedTest } from '../../src/fixtures/authenticated-test';
 import { installmentAccount } from '../../src/config/auth';
 import { testData } from '../../src/config/test-data';
 import { CarDetailsPage } from '../../src/pages/car-details.page';
-import { CheckoutPage } from '../../src/pages/checkout.page';
 import { MyRentalsPage } from '../../src/pages/my-rentals.page';
 import { goToRentalPackageCarDetails } from '../../src/utils/booking-navigation';
+import { defaultPaymentMethod } from '../../src/payments/payment-method';
 
 // `installmentAccount` is an alias of `primaryAccount`, not a second customer.
 // This booking therefore shares the one-pending-reservation-per-customer rule
@@ -35,7 +35,6 @@ test.describe('Installment booking', () => {
 
   test('installment booking', async ({ page }) => {
     const carDetailsPage = new CarDetailsPage(page);
-    const checkoutPage = new CheckoutPage(page);
 
     await goToRentalPackageCarDetails(page);
 
@@ -46,19 +45,12 @@ test.describe('Installment booking', () => {
     await carDetailsPage.proceedToInstallments();
     await carDetailsPage.expectInstallmentsDialog();
 
-    // Mada finalization currently fails with a backend 500, so pay by card.
-    await carDetailsPage.selectCreditCardPaymentMethod();
+    // On the default card, like every other booking type: what this test covers
+    // is the instalment journey, not the payment method.
+    await defaultPaymentMethod.select(page);
     await carDetailsPage.payFromInstallmentsDialog();
-
-    // Same payment helper as the normal booking: fills the HyperPay widget,
-    // approves 3-D Secure, and asserts the success alert (retrying the gateway
-    // callback when it returns the intermittent backend 500).
-    await checkoutPage.payAndConfirm({
-      holder: testData.payment.holder,
-      number: testData.payment.visaNumber,
-      expiry: testData.payment.expiry,
-      cvv: testData.payment.cvv,
-    });
+    await defaultPaymentMethod.complete(page);
+    await defaultPaymentMethod.expectSuccess(page);
 
     // Release the booking the way a customer would: through the success dialog
     // into the booking's own page. `afterEach` remains the safety net.

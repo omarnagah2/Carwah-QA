@@ -8,6 +8,7 @@ import { CarDetailsPage } from '../../src/pages/car-details.page';
 import { CheckoutPage } from '../../src/pages/checkout.page';
 import { MyRentalsPage } from '../../src/pages/my-rentals.page';
 import { goToDeliveryOptionalCarDetails } from '../../src/utils/booking-navigation';
+import { defaultPaymentMethod } from '../../src/payments/payment-method';
 
 test.describe('Create booking', () => {
   // The booking flow up to payment-method selection works without signing in.
@@ -64,23 +65,15 @@ authTest.describe('Create booking - payment', () => {
 
   authTest('normal booking', async ({ page }) => {
     const carDetailsPage = new CarDetailsPage(page);
-    const checkoutPage = new CheckoutPage(page);
 
     await goToDeliveryOptionalCarDetails(page);
 
-    // Mada finalization currently fails with a backend 500, so pay by card.
-    await carDetailsPage.selectCreditCardPaymentMethod();
+    // On the default card: what this test covers is the booking, not the
+    // payment method. Every method is compared in payment-methods.spec.ts.
+    await defaultPaymentMethod.select(page);
     await carDetailsPage.payNow();
-
-    // Retries the payment on a failed gateway callback, the same way the app
-    // tells the customer to, so the intermittent backend 500 in
-    // hyperpay_payment_gateway.rb does not mask whether a booking can be made.
-    await checkoutPage.payAndConfirm({
-      holder: testData.payment.holder,
-      number: testData.payment.visaNumber,
-      expiry: testData.payment.expiry,
-      cvv: testData.payment.cvv,
-    });
+    await defaultPaymentMethod.complete(page);
+    await defaultPaymentMethod.expectSuccess(page);
 
     // Follow the success dialog to the booking it created and release it, which
     // is the journey a customer takes. `afterEach` stays as the safety net for
