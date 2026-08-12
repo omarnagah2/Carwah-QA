@@ -8,22 +8,28 @@ Specs are grouped by feature area:
 
 ```text
 tests/
-├── auth.setup.ts               # signs the accounts in (setup project)
-├── auth-installment.setup.ts
+├── auth.setup.ts               # signs the account in (setup project)
 ├── auth/
 │   ├── login.spec.ts
 │   └── logout.spec.ts
 ├── home/
 │   ├── coupon.spec.ts
+│   ├── extra-service-search.spec.ts
+│   ├── partner-tag.spec.ts
 │   └── vehicle-type-search.spec.ts
 └── booking/
-    ├── booking.spec.ts
-    └── installment-booking.spec.ts
+    ├── booking.spec.ts             # normal booking + pending alert
+    ├── delivery-booking.spec.ts
+    ├── installment-booking.spec.ts
+    ├── payment-methods.spec.ts     # every method, one held-still booking
+    └── rent-to-own.spec.ts
 ```
 
-Every spec is independent — its own account where it matters, its own cleanup —
-so the run order does not affect results. Run one area with, for example,
-`npx playwright test tests/booking`.
+Each spec cleans up after itself, so the run order does not affect results. They
+are **not** independent of one another, though: the whole suite runs as one
+customer, and Carwah allows only one pending reservation per customer, so the
+booking specs must not overlap. The default single worker is what keeps them
+sequential. Run one area with, for example, `npx playwright test tests/booking`.
 
 ## Setup
 
