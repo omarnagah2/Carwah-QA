@@ -11,22 +11,33 @@ export class MyRentalsPage extends BasePage {
     return this.page.getByText(/قيد ال[إا]نتظار/);
   }
 
+  /** The list's own spinner, shown while the reservations are being fetched. */
+  private get loadingIndicator(): Locator {
+    return this.page.locator('.MuiCircularProgress-root, [role="progressbar"]');
+  }
 
   /** How many reservations are currently pending on the account. */
   async pendingReservationCount(): Promise<number> {
     await this.open();
-    await this.page.waitForTimeout(2_000);
     return this.pendingStatus.count();
   }
 
+  /**
+   * Open the rentals list and wait for it to have actually loaded.
+   *
+   * The "الحجوزات" heading is page furniture and is on screen well before any
+   * reservation is, so waiting for it alone leaves the list empty. Counting
+   * then reports zero pending for an account that has one, and the booking
+   * that follows is refused with the pending alert. Waiting for the list's own
+   * spinner to go is what makes the count mean anything.
+   */
   async open(): Promise<void> {
     await this.page.goto('/ar/my-rentals', { waitUntil: 'domcontentloaded' });
     await expect(this.page.getByText('الحجوزات').first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.loadingIndicator).toHaveCount(0, { timeout: 30_000 });
   }
 
   private async hasPending(): Promise<boolean> {
-    // Give the list a moment to render before deciding there is no pending card.
-    await this.page.waitForTimeout(1_500);
     return (await this.pendingStatus.count()) > 0;
   }
 
