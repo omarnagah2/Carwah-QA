@@ -146,15 +146,20 @@ export class CarDetailsPage extends BasePage {
 
   /**
    * Follow the payment-success dialog through to the booking it created, which
-   * is this same page addressed by `bookingId`. The reload is what the customer
-   * does too: the details arrive with the fresh load, and the cancel action
-   * comes with them.
+   * is this same page addressed by `bookingId`.
+   *
+   * Taking the rental-details action is also what dismisses the dialog, so
+   * there is nothing to reload afterwards. Reloading actively hurt: the URL
+   * still carries `checkout_id`, so a fresh load renders the success dialog
+   * again and its backdrop then swallows the click on the cancel link
+   * underneath. Waiting for the dialog to go is what confirms the page is
+   * clear.
    */
   async openRentalDetailsFromSuccess(): Promise<void> {
     await expect(this.rentalDetailsAction.first()).toBeVisible({ timeout: 30_000 });
     await this.rentalDetailsAction.first().click();
     await this.page.waitForURL(/bookingId=/, { timeout: 30_000 });
-    await this.page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(this.rentalDetailsAction.first()).toBeHidden({ timeout: 20_000 });
   }
 
   /**
