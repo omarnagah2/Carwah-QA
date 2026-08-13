@@ -1,7 +1,8 @@
 # Carwah UI — Playwright automation
 
 E2E suite for **prewebsite.carwah.co** (Arabic-first, served over **HTTP**).
-Playwright + TypeScript, Page Object Model. 42 tests.
+Playwright + TypeScript, Page Object Model. 27 tests per browser project
+(chromium/firefox/webkit), plus the one-test `setup` project.
 
 ## Layout
 
@@ -11,9 +12,10 @@ tests/
 ├── auth/      login, logout
 ├── home/      coupon, vehicle-type-search, extra-service-search, partner-tag
 └── booking/   booking (normal + pending alert), installment-booking,
-               rent-to-own, delivery-booking, mada-booking, tabby-booking
+               rent-to-own, delivery-booking, payment-methods
 src/pages/     page objects        src/utils/  shared navigation + auth helpers
 src/config/    auth.ts, test-data.ts (all data, env-overridable)
+src/payments/  PaymentMethod strategy (Visa, Mada, Tabby)
 ```
 
 ## Commands
@@ -165,22 +167,41 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
 - Vehicle-type cards never render on WebKit and are not clickable on Firefox.
 - The `extraServices` API response does not match the cards the home carousel shows.
 
+## Paying for a booking
+
+- **Paying is a `PaymentMethod` strategy** (`src/payments/payment-method.ts`):
+  `select` takes the method in the car-details dialog, `complete` drives the
+  provider's own checkout, `expectSuccess` confirms the booking came back paid.
+  Visa and Mada share one card implementation — they differ only in the number
+  typed and the entry taken — and Tabby has its own.
+- The specs used to be split on two axes at once, one per booking type *and* one
+  per method, so paying had to be changed in both. Now **each booking type is
+  tested on `defaultPaymentMethod`** (the credit card; Mada's finalization still
+  fails with a backend 500), and **`payment-methods.spec.ts` walks every method
+  through one held-still booking**. Visa appears in both on purpose: the former
+  is the whole journey for a booking type, the latter the comparison across
+  methods. That spec is deliberately *not* serial, so a failing method does not
+  hide the ones after it.
+- `releasableFromSuccess` is how a method says whether success leads on to the
+  booking's own page. The cards do; Tabby does not, for the mixed-content reason
+  above, so its booking is released by the `afterEach` sweep instead. Tabby's
+  `expectSuccess` stays URL-based until the product returns to http (or the API
+  moves to https) — the cause is known, so it waits on a fix, not investigation.
+- **Not yet run against the site.** The refactor was written during an outage and
+  is typechecked and listed only; the booking specs still need a real run.
+
 ## Pending work
 
-1. **Payment-method refactor.** Specs are split on two axes (four booking types vs
-   per-method specs). Introduce a `PaymentMethod` strategy (`select` / `complete` /
-   `expectSuccess`) with Visa, Mada and Tabby implementations; keep one spec per
-   booking type on the default card, plus one spec parameterised across methods.
-   Tabby's `expectSuccess` stays URL-based until the product returns to http (or
-   the API moves to https) — the cause is known, so this is waiting on a fix, not
-   on investigation.
-2. The environment-classifier reporter printed nothing for a run of 40
+1. The environment-classifier reporter printed nothing for a run of 40
    environment-caused failures — investigate.
-3. **`rent-to-own` is deliberately not being reviewed**: the feature is due to be
+2. **`rent-to-own` is deliberately not being reviewed**: the feature is due to be
    redesigned outright, so reworking its journey now would be thrown away. Leave
    it on the `afterEach` sweep, and review it against the real customer path once
-   the redesign lands. `tabby` keeps the sweep too, but for a different reason:
-   the mixed-content block above leaves it no success dialog to cancel from.
+   the redesign lands. It is the one booking type still paying through
+   `CheckoutPage` directly rather than through a `PaymentMethod`, for the same
+   reason. The Tabby case in `payment-methods.spec.ts` keeps the sweep too, but
+   for a different reason: the mixed-content block above leaves it no success
+   dialog to cancel from.
 
 ## Working style that worked here
 

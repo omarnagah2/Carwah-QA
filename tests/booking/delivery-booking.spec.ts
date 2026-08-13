@@ -4,8 +4,8 @@ import { testData } from '../../src/config/test-data';
 import { HomePage } from '../../src/pages/home.page';
 import { selectPinnedCarAndBranch } from '../../src/utils/booking-navigation';
 import { CarDetailsPage } from '../../src/pages/car-details.page';
-import { CheckoutPage } from '../../src/pages/checkout.page';
 import { MyRentalsPage } from '../../src/pages/my-rentals.page';
+import { defaultPaymentMethod } from '../../src/payments/payment-method';
 
 test.describe('Delivery booking', () => {
   // Creates a booking through the payment gateway, which is only reliable on
@@ -27,7 +27,6 @@ test.describe('Delivery booking', () => {
   test('delivery booking', async ({ page }) => {
     const homePage = new HomePage(page);
     const carDetailsPage = new CarDetailsPage(page);
-    const checkoutPage = new CheckoutPage(page);
 
     // 1-4. Home page -> delivery tab -> pick a location -> search.
     await homePage.openArabicHomePage();
@@ -46,15 +45,12 @@ test.describe('Delivery booking', () => {
     //    pickup location chosen during the search.
     await carDetailsPage.expectDeliverySection();
 
-    // Then the usual payment process.
-    await carDetailsPage.selectCreditCardPaymentMethod();
+    // Then the usual payment process, on the default card: what this test
+    // covers is the delivery journey, not the payment method.
+    await defaultPaymentMethod.select(page);
     await carDetailsPage.payNow();
-    await checkoutPage.payAndConfirm({
-      holder: testData.payment.holder,
-      number: testData.payment.visaNumber,
-      expiry: testData.payment.expiry,
-      cvv: testData.payment.cvv,
-    });
+    await defaultPaymentMethod.complete(page);
+    await defaultPaymentMethod.expectSuccess(page);
 
     // Release the booking the way a customer would: through the success dialog
     // into the booking's own page. `afterEach` remains the safety net.

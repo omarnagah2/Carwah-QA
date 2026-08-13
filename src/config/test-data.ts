@@ -93,6 +93,9 @@ export const testData = {
     cvv: process.env.CARWAH_TEST_CARD_CVV ?? '123',
     visaNumber: process.env.CARWAH_TEST_VISA ?? '4111111111111111',
     madaNumber: process.env.CARWAH_TEST_MADA ?? '4464040000000007',
+    // Tabby's sandbox OTP. Its input is controlled and submits by itself on the
+    // fourth digit, so it is typed a key at a time rather than filled.
+    tabbyOtp: process.env.CARWAH_TABBY_OTP ?? '8888',
   },
   // Partner tags applied with ?tag=. Each shows that partner's banner above the
   // header. Slugs are exactly as the partners' links use them, spaces included.

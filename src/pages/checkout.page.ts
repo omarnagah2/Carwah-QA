@@ -88,6 +88,16 @@ export class CheckoutPage extends BasePage {
   }
 
   /**
+   * The booking came back paid. `payAndConfirm` already returns on the success
+   * dialog, so for a card this re-states what got it there — it exists so every
+   * payment method confirms its own outcome, in its own strategy, rather than
+   * some asserting inside the pay step and others after it.
+   */
+  async expectPaymentSuccess(): Promise<void> {
+    await expect(this.paymentSuccessMessage.first()).toBeVisible({ timeout: 45_000 });
+  }
+
+  /**
    * Focus a widget field and type into it a keystroke at a time.
    *
    * The card number and CVV are PCI iframes and the expiry is a masked input:

@@ -7,6 +7,7 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
+    "typecheck": "tsc --noEmit",
     "report": "playwright show-report",
     "health": "node scripts/check-backend-health.mjs",
     "codegen": "playwright codegen https://prewebsite.carwah.co/en",
