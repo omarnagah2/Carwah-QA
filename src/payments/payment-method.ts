@@ -3,6 +3,7 @@ import { testData } from '../config/test-data';
 import { CarDetailsPage } from '../pages/car-details.page';
 import { CheckoutPage } from '../pages/checkout.page';
 import { TabbyCheckoutPage } from '../pages/tabby-checkout.page';
+import { TamaraCheckoutPage, waitForTamaraCheckout } from '../pages/tamara-checkout.page';
 
 /**
  * One way of paying for a booking, as the three steps a customer takes: pick
@@ -24,6 +25,16 @@ export interface PaymentMethod {
    * details. False for Tabby — see below.
    */
   readonly releasableFromSuccess: boolean;
+
+  /**
+   * Why this method cannot currently be driven end to end, if it cannot.
+   *
+   * A method with a reason here is skipped by `payment-methods.spec.ts` with
+   * that reason printed, rather than left to fail: an outage at the provider
+   * says nothing about our code, and a red suite that everyone learns to
+   * ignore is worse than an honest skip. Clear the field to re-enable it.
+   */
+  readonly blockedReason?: string;
 
   /** Take this method in the car-details payment dialog. */
   select(page: Page): Promise<void>;
@@ -117,8 +128,89 @@ export const tabbyPayment: PaymentMethod = {
   },
 };
 
+export const tamaraPayment: PaymentMethod = {
+  name: 'Tamara',
+
+  /**
+   * Unverified, like `expectSuccess` below: the hand-back was never reached
+   * while the sandbox was failing. Set pessimistically, so the booking is
+   * released by the spec's sweep rather than through a page that may not
+   * render — Tabby's return is https against an http API, and Tamara's comes
+   * back to the same place.
+   */
+  releasableFromSuccess: false,
+
+  /**
+   * Tamara's sandbox redirects to `tamara.co/en-sa/maintenance` at the payment
+   * step — seen both on paying and on touching a plan tile, while the sandbox
+   * host itself answered 200. The journey up to that click is mapped and
+   * implemented; only the provider's own final step fails.
+   *
+   * Remove this to re-enable the case once Tamara's sandbox is back.
+   */
+  blockedReason:
+    "Tamara's sandbox redirects to its maintenance page at the payment step; the journey up to it is implemented.",
+
+  async select(page: Page): Promise<void> {
+    await new CarDetailsPage(page).selectTamaraPaymentMethod();
+  },
+
+  async complete(page: Page): Promise<void> {
+    // Tamara opens in a new tab, so the checkout is picked out of the context
+    // rather than followed from the page the booking started on.
+    const tamara = new TamaraCheckoutPage(await waitForTamaraCheckout(page));
+
+    await tamara.expectOnTamara();
+    await tamara.signIn(testData.tamara.sandboxPhoneNumber);
+    await tamara.enterOtp();
+    // Identity checks are asked for only the first time Tamara sees a customer.
+    await tamara.completeIdentityCheckIfAsked();
+    await tamara.continueWithSelectedPlan();
+    await tamara.payFirstInstalment({
+      holder: testData.payment.holder,
+      number: testData.payment.visaNumber,
+      expiry: testData.payment.expiry,
+      cvv: testData.payment.cvv,
+    });
+  },
+
+  /**
+   * **Unverified.** The sandbox never completed a payment, so the hand-back was
+   * never observed; this asserts the shape Tabby's takes — Carwah reached again
+   * carrying a `bookingId` — in whichever tab arrives there first, since Tamara
+   * runs in a popup. Confirm it against a real success before trusting it.
+   */
+  async expectSuccess(page: Page): Promise<void> {
+    const deadline = Date.now() + 120_000;
+
+    while (Date.now() < deadline) {
+      for (const candidate of page.context().pages()) {
+        if (candidate.isClosed()) {
+          continue;
+        }
+        if (/tamara\.co\/.*maintenance/i.test(candidate.url())) {
+          throw new Error(
+            'Tamara redirected to its maintenance page — the sandbox rejected the payment.',
+          );
+        }
+        if (/carwah\.co/i.test(candidate.url()) && /bookingId=\d+/.test(candidate.url())) {
+          return;
+        }
+      }
+      await page.waitForTimeout(2_000);
+    }
+
+    throw new Error('Tamara never handed back to Carwah with a booking id.');
+  },
+};
+
 /** Every method a customer can pay a booking with. */
-export const paymentMethods: PaymentMethod[] = [visaPayment, madaPayment, tabbyPayment];
+export const paymentMethods: PaymentMethod[] = [
+  visaPayment,
+  madaPayment,
+  tabbyPayment,
+  tamaraPayment,
+];
 
 /**
  * The card the booking-type specs pay with, so that what they cover is the

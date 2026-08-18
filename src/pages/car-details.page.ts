@@ -1,6 +1,13 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './base.page';
 
+/**
+ * Tamara's entry in the payment dialog. It is labelled by what it offers rather
+ * than by the provider's name, so the string says nothing about who it is —
+ * hence the constant, shared by the specs that assert on it.
+ */
+export const tamaraPaymentLabel = '3 دفعات بدون فوائد';
+
 export class CarDetailsPage extends BasePage {
   constructor(page: Page) {
     super(page);
@@ -210,24 +217,115 @@ export class CarDetailsPage extends BasePage {
     await expect(this.paymentDialog).toBeVisible();
   }
 
-  /** Open the dialog, take a method, and close it again. */
-  private async selectPaymentMethod(name: string | RegExp): Promise<void> {
+  /**
+   * The provider logo the pay button carries. This is how the page reports
+   * which method is set, and the only place it is stated outside the dialog.
+   */
+  private get payMethodLogo(): Locator {
+    return this.page.locator('#rent-action img[alt="payment icon"]');
+  }
+
+  /**
+   * A method's row in the dialog. The label is an `h6` inside a wrapper div,
+   * and the row around both is what carries the radio icon and the cursor.
+   */
+  private paymentMethodRow(name: string | RegExp): Locator {
+    return this.paymentMethod(name).locator('xpath=../..');
+  }
+
+  /** Which provider the pay button is currently set to. */
+  async expectPayMethodLogo(logo: string): Promise<void> {
+    await expect(
+      this.payMethodLogo,
+      `the pay button should carry the ${logo} logo`,
+    ).toHaveAttribute('src', new RegExp(`${logo}\\.svg$`));
+  }
+
+  /**
+   * Open the dialog, take a method, close it, and confirm it was actually
+   * taken.
+   *
+   * The confirmation matters: the dialog gives no feedback a caller can rely on
+   * once it is closed, and Mada is the method the page opens on — so a click
+   * that silently failed would leave Mada selected and every card test would
+   * still pass, paying with whatever number it typed. The pay button's logo is
+   * the page's own statement of the choice, so that is what is asserted.
+   */
+  private async selectPaymentMethod(name: string | RegExp, logo: string): Promise<void> {
     await this.openPaymentMethods();
+
+    // The list fills in asynchronously — a sixth method appears a beat after the
+    // dialog opens — so a click made too early lands on a row that is about to
+    // be replaced and the choice is silently lost. Waiting for the row to be
+    // selectable settles that, and refuses a method the price has disabled.
+    await expect(
+      this.paymentMethodRow(name),
+      'this method is not selectable, so it cannot be chosen',
+    ).toHaveCSS('cursor', 'pointer');
+
     await this.paymentMethod(name).click();
+    await this.expectPaymentMethodChosen(name);
+
     await this.closePaymentDialogButton.click();
     await expect(this.paymentDialog).toBeHidden();
+    await this.expectPayMethodLogo(logo);
   }
 
   async selectTabbyPaymentMethod(): Promise<void> {
-    await this.selectPaymentMethod(/تابي/);
+    await this.selectPaymentMethod(/تابي/, 'tabby-badge');
   }
 
   async selectMadaPaymentMethod(): Promise<void> {
-    await this.selectPaymentMethod('مدى');
+    await this.selectPaymentMethod('مدى', 'mada');
+  }
+
+  /** Tamara is labelled by what it offers, not by name — "3 instalments, no interest". */
+  async selectTamaraPaymentMethod(): Promise<void> {
+    await this.selectPaymentMethod(tamaraPaymentLabel, 'tamara');
   }
 
   async selectCreditCardPaymentMethod(): Promise<void> {
-    await this.selectPaymentMethod('بطاقة ائتمان');
+    await this.selectPaymentMethod('بطاقة ائتمان', 'visamaster');
+  }
+
+  /**
+   * Tamara is offered only while the booking total sits inside the limits held
+   * in Firebase Remote Config. Outside them the row stays in the list and
+   * simply refuses the click.
+   *
+   * `cursor: not-allowed` is the *only* thing that marks it: opacity, colour,
+   * pointer-events and the radio icon are identical to a selectable row, so
+   * there is nothing else to assert on.
+   */
+  async expectPaymentMethodDisabled(name: string | RegExp): Promise<void> {
+    await this.openPaymentMethods();
+    await expect(
+      this.paymentMethodRow(name),
+      'this method should be offered but not selectable',
+    ).toHaveCSS('cursor', 'not-allowed');
+  }
+
+  async expectPaymentMethodEnabled(name: string | RegExp): Promise<void> {
+    await this.openPaymentMethods();
+    await expect(this.paymentMethodRow(name)).toHaveCSS('cursor', 'pointer');
+  }
+
+  /** Click a method without assuming it will be taken. */
+  async clickPaymentMethod(name: string | RegExp): Promise<void> {
+    await this.paymentMethod(name).click();
+  }
+
+  /** Which method the dialog currently shows as chosen. */
+  async expectPaymentMethodChosen(name: string | RegExp): Promise<void> {
+    await expect(
+      this.paymentMethodRow(name).locator('img[src*="filledCircle"]'),
+      'this method should be the one marked as chosen',
+    ).toBeVisible();
+  }
+
+  async closePaymentDialog(): Promise<void> {
+    await this.closePaymentDialogButton.click();
+    await expect(this.paymentDialog).toBeHidden();
   }
 
   async expectCorePaymentMethods(): Promise<void> {

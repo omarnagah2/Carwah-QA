@@ -1,7 +1,7 @@
 # Carwah UI — Playwright automation
 
 E2E suite for **prewebsite.carwah.co** (Arabic-first, served over **HTTP**).
-Playwright + TypeScript, Page Object Model. 27 tests per browser project
+Playwright + TypeScript, Page Object Model. 30 tests per browser project
 (chromium/firefox/webkit), plus the one-test `setup` project.
 
 ## Layout
@@ -12,10 +12,10 @@ tests/
 ├── auth/      login, logout
 ├── home/      coupon, vehicle-type-search, extra-service-search, partner-tag
 └── booking/   booking (normal + pending alert), installment-booking,
-               rent-to-own, delivery-booking, payment-methods
+               rent-to-own, delivery-booking, payment-methods, tamara
 src/pages/     page objects        src/utils/  shared navigation + auth helpers
 src/config/    auth.ts, test-data.ts (all data, env-overridable)
-src/payments/  PaymentMethod strategy (Visa, Mada, Tabby)
+src/payments/  PaymentMethod strategy (Visa, Mada, Tabby, Tamara)
 ```
 
 ## Commands
@@ -163,6 +163,15 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
   action and no cancel link — the booking exists, but the page cannot show it.
   Either the return URL should be http on pre-prod, or the API should be served
   over https. Evidence is in the Payment gotchas entry above.
+- **Tamara's sandbox fails at the payment step**, redirecting to
+  `tamara.co/en-sa/maintenance` — seen both on paying with the Visa test card
+  and on clicking a plan tile, while `checkout-sandbox.tamara.co` itself
+  answered 200, so it is that step rather than a general outage. Everything up
+  to the click is implemented and mapped; `tamaraPayment` carries a
+  `blockedReason` so the case is skipped rather than failing. Its
+  `expectSuccess` and `releasableFromSuccess` are **unverified**: no successful
+  hand-back was ever observed, so `expectSuccess` asserts the shape Tabby's
+  takes. Clear the reason and confirm both once the sandbox is back.
 - `renttoown.status.Success` — untranslated key shown to users on rent-to-own.
 - Vehicle-type cards never render on WebKit and are not clickable on Firefox.
 - The `extraServices` API response does not match the cards the home carousel shows.
@@ -187,8 +196,54 @@ FORCE_LOGIN=1 npx playwright test       # ignore the stored session
   above, so its booking is released by the `afterEach` sweep instead. Tabby's
   `expectSuccess` stays URL-based until the product returns to http (or the API
   moves to https) — the cause is known, so it waits on a fix, not investigation.
-- **Not yet run against the site.** The refactor was written during an outage and
-  is typechecked and listed only; the booking specs still need a real run.
+- **Choosing a method is verified, and has to be.** The dialog marks the chosen
+  row by swapping `emptyCircle.svg` for `filledCircle.svg`, and the pay button
+  then carries the provider's logo — `mada`, `visamaster`, `tamara`,
+  `tabby-badge`, `cash`. `selectPaymentMethod` asserts the logo, because **Mada
+  is the method the page opens on**: before that, a `selectMadaPaymentMethod()`
+  whose click never landed was indistinguishable from one that worked, and the
+  card tests would still pass on whatever number they typed. The list also fills
+  in asynchronously — a sixth method appears a beat after the dialog opens — so
+  the selection waits for the row to be selectable before clicking.
+- A `PaymentMethod` may declare a `blockedReason`, and `payment-methods.spec.ts`
+  skips it with that reason printed rather than letting it fail. An outage at a
+  provider is not a result about our code, and a red suite everyone learns to
+  ignore is worse than an honest skip.
+
+## Tamara
+
+- **Availability is gated on price.** Tamara is offered only while the booking
+  total sits between limits held in **Firebase Remote Config**
+  (`tamara_min_limit_value` 99, `tamara_max_limit_value` 50000, on the *Prod*
+  project), mirrored in `testData.tamara` — so they can drift. If a Tamara test
+  starts failing, check Remote Config before hunting for a broken selector.
+- **Outside the limits the row stays and refuses the click**, and
+  `cursor: not-allowed` is the *only* thing marking it: opacity, colour,
+  pointer-events and the radio icon are identical to a selectable row.
+  `tamara.spec.ts` covers both sides and neither test pays, so neither creates a
+  booking.
+- **Watch the branch, not just the price.** A cash-only branch offers no online
+  methods at all, which looks exactly like Tamara being refused and proves
+  nothing — the first candidate car (﷼1/day) was one. The below-minimum test
+  asserts Mada *is* selectable at its branch first, so it cannot pass for the
+  wrong reason.
+- **Its checkout opens in a new browser tab**, unlike Tabby's, so it is picked
+  out of the context by `waitForTamaraCheckout` rather than followed. Then:
+  the phone field arrives **pre-filled with the Carwah customer's number and
+  must be cleared**, or Tamara signs in as them and skips the very steps under
+  test; `أرسل الرمز`; a terms dialog shown only for a number it has not
+  onboarded; and an OTP the sandbox **prints on the page** as `Code: NNNN`. The
+  four visible OTP boxes are decorative — one `input.hidden-otp-input` overlays
+  them and takes the keystrokes. Identity checks (`/kyc`) are first-time only,
+  filled by a Non-Citizen button that exists only outside production. The plan
+  arrives selected: **do not click a plan tile**, which sends the sandbox to
+  Tamara's maintenance page. The card form is Checkout.com Frames v2 — three
+  iframes addressed by `element=`, with the real field taken by id
+  (`#checkout-frames-card-number`, `-expiry-date`, `-cvv`), because each frame
+  also holds navigation and autofill helpers.
+- **Match Tamara's path, never the whole URL.** The host is
+  `checkout-sandbox.tamara.co`, so any pattern containing `checkout` matches the
+  *hostname* and reports a page that was never reached.
 
 ## Pending work
 
