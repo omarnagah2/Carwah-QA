@@ -32,6 +32,10 @@ test.describe('Payment methods', () => {
 
   for (const method of paymentMethods) {
     test(`booking paid with ${method.name}`, async ({ page }) => {
+      // A provider that cannot currently be driven end to end says so itself,
+      // and is skipped with that reason rather than failing: an outage at the
+      // provider is not a result about our code.
+      test.skip(Boolean(method.blockedReason), method.blockedReason ?? '');
       test.setTimeout(300_000);
       const carDetails = new CarDetailsPage(page);
 

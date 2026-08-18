@@ -97,6 +97,49 @@ export const testData = {
     // fourth digit, so it is typed a key at a time rather than filled.
     tabbyOtp: process.env.CARWAH_TABBY_OTP ?? '8888',
   },
+  /**
+   * Tamara is offered only while the booking total sits inside limits held in
+   * **Firebase Remote Config** (`tamara_min_limit_value` /
+   * `tamara_max_limit_value`, on the *Prod* project). Outside them the payment
+   * dialog dims the option instead of hiding it.
+   *
+   * The figures are mirrored here rather than read from Firebase, so they can
+   * drift: if a Tamara test starts failing, check Remote Config before hunting
+   * for a broken selector.
+   */
+  tamara: {
+    minTotal: Number(process.env.CARWAH_TAMARA_MIN ?? 99),
+    maxTotal: Number(process.env.CARWAH_TAMARA_MAX ?? 50_000),
+    /**
+     * Tamara's sandbox checkout (`checkout-sandbox.tamara.co`), which opens in a
+     * **new browser tab** rather than navigating in place the way Tabby does.
+     *
+     * There is no OTP to know in advance: the sandbox prints the code on the
+     * page. Identity verification is likewise self-serve — a "Non-Citizen"
+     * button fills the ID and date of birth, and the page says outright that it
+     * exists only outside production.
+     */
+    sandboxPhoneNumber: process.env.CARWAH_TAMARA_PHONE ?? '517965874',
+    /**
+     * A booking too cheap for Tamara, which is how the disabled state is
+     * covered by a real listing rather than a contrived one: ﷼0.1/day, so even
+     * the default three-day rental totals far below the minimum.
+     *
+     * The branch matters as much as the car. A cash-only branch offers no
+     * online methods at all, which looks like the same failure but proves
+     * nothing about Tamara's limits — this one offers all five, with Tamara the
+     * only one refused.
+     */
+    belowMinimum: {
+      city: process.env.CARWAH_TAMARA_CHEAP_CITY ?? 'المدينة المنورة',
+      searchTerm: process.env.CARWAH_TAMARA_CHEAP_SEARCH ?? 'سيمبول',
+      // Two listings match the term; the price is what separates this one.
+      carLabel: process.env.CARWAH_TAMARA_CHEAP_CAR ?? 'سيمبول',
+      dailyPrice: process.env.CARWAH_TAMARA_CHEAP_PRICE ?? '0.1',
+      carBranchesId: process.env.CARWAH_TAMARA_CHEAP_BRANCHES_ID ?? '15898',
+      carDetailsId: process.env.CARWAH_TAMARA_CHEAP_DETAILS_ID ?? '15898',
+    },
+  },
   // Partner tags applied with ?tag=. Each shows that partner's banner above the
   // header. Slugs are exactly as the partners' links use them, spaces included.
   partnerTags: [
